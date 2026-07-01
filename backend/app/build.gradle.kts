@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":backend:payment"))
     implementation(project(":backend:rating"))
     implementation(project(":backend:dispatch"))
+    implementation(project(":backend:governance"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
