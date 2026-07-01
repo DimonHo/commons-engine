@@ -1,5 +1,5 @@
 plugins {
-    id("commons-engine-convention")
+    id("commons-engine.spring-convention")
 }
 
 dependencies {
