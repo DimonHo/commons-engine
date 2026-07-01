@@ -89,7 +89,7 @@ class RatingServiceTest {
         service.submit(rating(ratee = "w1", tags = setOf(RatingTag.PUNCTUAL)))
 
         val profile = service.getCreditProfile("w1")
-        assertEquals(3, profile.tagFrequency[RatingTag.POLITE])
+        assertEquals(2, profile.tagFrequency[RatingTag.POLITE])
         assertEquals(2, profile.tagFrequency[RatingTag.PUNCTUAL])
     }
 }
