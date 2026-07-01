@@ -1,0 +1,42 @@
+name: 功能请求 / 任务
+description: 提出新的功能或可追踪任务
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 想要实现什么？
+      description: 清晰描述目标与背景。涉及哪个模块（matching/payment/rating/dispute/governance/infra）？
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: 验收标准
+      description: 怎样算"做完了"？列出可验证的条件。
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: 所属模块
+      options:
+        - matching 匹配
+        - payment 分账
+        - rating 评价
+        - dispute 仲裁
+        - governance 治理
+        - identity 身份
+        - infra 基础设施
+        - docs 文档
+        - org 组织/社区
+        - 其他
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 优先级
+      options: ["P0 紧急", "P1 高", "P2 中", "P3 低"]
+    validations:
+      required: true

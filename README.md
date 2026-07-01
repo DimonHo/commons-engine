@@ -1,5 +1,8 @@
 # 公地引擎 · Commons Engine
 
+[![CI](https://github.com/DimonHo/commons-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/DimonHo/commons-engine/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/code-AGPL--3.0-blue)](./LICENSE)
+
 > **用技术夺回被资本垄断的平台。**
 > 一个开源的公地引擎——让劳动者自己的合作社，而非资本平台，来运营打车、外卖、本地生活等平台经济。
 

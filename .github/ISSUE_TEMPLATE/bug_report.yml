@@ -1,0 +1,33 @@
+name: 缺陷报告
+description: 报告一个 bug
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 出了什么问题？
+      description: 复现步骤 + 预期 vs 实际。
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      description: 如 Python 版本、OS、相关分支/commit。
+    validations:
+      required: false
+  - type: dropdown
+    id: module
+    attributes:
+      label: 所属模块
+      options:
+        - matching 匹配
+        - payment 分账
+        - rating 评价
+        - dispute 仲裁
+        - governance 治理
+        - identity 身份
+        - infra 基础设施
+        - 其他
+    validations:
+      required: true
