@@ -5,10 +5,10 @@ import com.commonsengine.governance.domain.ProposalId
 import com.commonsengine.governance.domain.ProposalStatus
 import com.commonsengine.governance.domain.ProposalType
 import com.commonsengine.governance.domain.StakeholderType
-import com.commonsengine.governance.domain.StakeholderType.weight
 import com.commonsengine.governance.domain.Vote
 import com.commonsengine.governance.domain.VoteChoice
 import com.commonsengine.governance.domain.VoteResult
+import com.commonsengine.governance.domain.weight
 import org.springframework.stereotype.Service
 import java.time.Instant
 import java.time.temporal.ChronoUnit
