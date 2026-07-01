@@ -19,6 +19,7 @@ subprojects {
         mavenCentral()
     }
 
+    // 统一应用 Kotlin JVM + detekt
     apply(plugin = "io.gitlab.arturbosch.detekt")
 
     plugins.withId("org.jetbrains.kotlin.jvm") {
@@ -34,5 +35,15 @@ subprojects {
     configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
         config.setFrom(rootProject.files("config/detekt/detekt.yml"))
         buildUponDefaultConfig = true
+    }
+
+    // 对所有应用了 io.spring.dependency-management 的子模块，
+    // 统一导入 Spring Boot BOM，使依赖无需显式声明版本号
+    plugins.withId("io.spring.dependency-management") {
+        extensions.configure<io.spring.gradle.dependencymanagement.DependencyManagementExtension> {
+            imports {
+                mavenBom(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+            }
+        }
     }
 }
