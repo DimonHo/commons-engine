@@ -1,13 +1,42 @@
-# 公地引擎本地开发依赖（阶段1 MVP）
-# 用法：cd deployments && docker-compose up -d
+version: "3.9"
+
 services:
+  # ── 核心业务后端（Spring Boot 4.x + Kotlin）──────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/commons_engine
+      SPRING_DATASOURCE_USERNAME: commons
+      SPRING_DATASOURCE_PASSWORD: commons_dev
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+
+  # ── AI 服务层（Python 独立部署）──────────────────────────────
+  ai-services:
+    build:
+      context: ./ai-services
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      BACKEND_URL: http://backend:8080
+
+  # ── 基础设施 ──────────────────────────────────────────────────
   postgres:
     image: postgis/postgis:16-3.4
-    container_name: commons-postgres
     environment:
+      POSTGRES_DB: commons_engine
       POSTGRES_USER: commons
-      POSTGRES_PASSWORD: commons
-      POSTGRES_DB: commons
+      POSTGRES_PASSWORD: commons_dev
     ports:
       - "5432:5432"
     volumes:
@@ -16,18 +45,17 @@ services:
       test: ["CMD-SHELL", "pg_isready -U commons"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: commons-redis
     ports:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 5
 
 volumes:
   pgdata:

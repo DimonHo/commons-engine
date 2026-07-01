@@ -1,4 +1,16 @@
-# Python
+# Kotlin / Gradle / JVM
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.war
+hs_err_pid*
+
+# Python (AI 服务层)
 __pycache__/
 *.py[cod]
 *$py.class
@@ -9,12 +21,11 @@ env/
 .venv/
 *.egg-info/
 dist/
-build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-# Node
+# Node (前端)
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -41,7 +52,7 @@ docker-compose.override.yml
 # OS
 Thumbs.db
 
-# Build
+# Misc
 *.log
 coverage/
 htmlcov/

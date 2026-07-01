@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: commons-engine
+  threads:
+    virtual:
+      enabled: true          # JDK 21 虚拟线程
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

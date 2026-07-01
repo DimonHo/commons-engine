@@ -1,0 +1,39 @@
+build:
+  parallel: true
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+complexity:
+  active: true
+  LongMethod:
+    threshold: 60
+  LongParameterList:
+    functionThreshold: 6
+    constructorThreshold: 7
+  ComplexCondition:
+    threshold: 5
+
+style:
+  active: true
+  WildcardImport:
+    active: false
+  ReturnCount:
+    active: false
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    maxLineLength: 140
+
+exceptions:
+  active: true
+
+empty-blocks:
+  active: true
+
+formatting:
+  active: true
+  autoCorrect: true
+  Indentation:
+    indentSize: 4
