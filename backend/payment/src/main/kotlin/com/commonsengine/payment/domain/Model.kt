@@ -42,11 +42,11 @@ data class SettlementRule(
 ) {
     init {
         val total = workerShareRate + platformOperationRate + commonsFundRate
-        require(total == BigDecimal.ONE) {
+        require(total.compareTo(BigDecimal.ONE) == 0) {
             "分账比例之和必须为 1.0（100%），实际: $total"
         }
         // 反榨取约束：劳动者所得不低于 70%（需全体大会最终确定）
-        require(workerShareRate >= BigDecimal("0.70")) {
+        require(workerShareRate.compareTo(BigDecimal("0.70")) >= 0) {
             "劳动者所得比例不得低于 70%（反榨取底线），实际: $workerShareRate"
         }
     }
