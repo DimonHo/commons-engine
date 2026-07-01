@@ -6,6 +6,7 @@ import com.commonsengine.payment.domain.SettlementRule
 import com.commonsengine.payment.domain.Transaction
 import com.commonsengine.payment.domain.TransactionId
 import com.commonsengine.payment.domain.TransactionStatus
+import com.commonsengine.payment.gateway.MockPaymentGateway
 import com.commonsengine.payment.gateway.PaymentGateway
 import com.commonsengine.payment.ledger.LedgerBook
 import org.springframework.stereotype.Service
