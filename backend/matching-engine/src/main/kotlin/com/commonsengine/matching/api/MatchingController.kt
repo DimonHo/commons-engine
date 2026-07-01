@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController
  */
 @RestController
 @RequestMapping("/api/v1/matching")
-class MatchingController(private val engine: MatchingEngine) {
+open class MatchingController(private val engine: MatchingEngine) {
 
     /** 健康检查 + 当前策略 */
     @GetMapping("/health")

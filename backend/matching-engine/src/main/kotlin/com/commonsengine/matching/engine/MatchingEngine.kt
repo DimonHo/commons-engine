@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service
  * 默认使用距离优先策略。
  */
 @Service
-class MatchingEngine(
+open class MatchingEngine(
     private val strategies: Map<String, MatchingStrategy> = mapOf(
         "nearest-first" to NearestFirstStrategy(),
         "fair-round-robin" to FairRoundRobinStrategy(),
