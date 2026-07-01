@@ -48,16 +48,21 @@
 └────────────────────────┬────────────────────────────────────┘
                          │
 ┌────────────────────────┴────────────────────────────────────┐
-│                    业务模块层（Modules）                      │
+│          业务模块层（Spring Boot 4.x · Kotlin）               │
 │                                                              │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
 │  │ 匹配引擎  │ │ 支付分账  │ │ 信用评价  │ │ 纠纷仲裁  │       │
 │  │ Matching │ │ Payment  │ │  Rating  │ │ Dispute  │       │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│  │ 调度引擎  │ │ 治理模块  │ │ 会员系统  │ │ AI 服务   │       │
-│  │ Dispatch │ │Governance│ │Identity  │ │ AI Layer  │       │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐                    │
+│  │ 调度引擎  │ │ 治理模块  │ │ 会员系统  │                    │
+│  │ Dispatch │ │Governance│ │Identity  │                    │
+│  └──────────┘ └──────────┘ └──────────┘                    │
+└────────────────────────┬────────────────────────────────────┘
+                         │ HTTP / gRPC
+┌────────────────────────┴────────────────────────────────────┐
+│              AI 服务层（Python · 独立部署）                    │
+│    客服NLP · 内容审核 · 调度优化 · 文档处理                    │
 └────────────────────────┬────────────────────────────────────┘
                          │
 ┌────────────────────────┴────────────────────────────────────┐
@@ -156,20 +161,43 @@
 
 ## 四、技术选型
 
+### 4.1 核心原则：混合架构
+
+公地引擎采用**核心业务 + AI 服务**分离的混合架构：
+
+- **核心业务层**（匹配/分账/评价/仲裁/治理/会员）使用 **Spring Boot 4.x + Kotlin**——强类型、高性能、金融级可靠。
+- **AI 服务层**（智能客服/内容审核/调度优化/文档处理）使用 **Python** 独立部署——充分利用 Python AI 生态。
+
+两层通过 HTTP/gRPC 通信，各自独立演进。
+
+### 4.2 技术栈
+
 | 层 | 选型 | 理由 |
 |----|------|------|
-| 后端语言 | Python（FastAPI）| AI 生态最完善，团队启动快 |
-| | Rust（核心引擎，阶段 2）| 匹配/调度等高性能场景 |
+| 后端语言 | **Kotlin**（JDK 21+）| 简洁、类型安全、协程与虚拟线程并行 |
+| 后端框架 | **Spring Boot 4.x** | 企业级成熟度、模块化单体天然支持、GraalVM 原生镜像 |
 | 数据库 | PostgreSQL + PostGIS | 地理空间、关系数据、成熟开源 |
 | 缓存 | Redis | 实时位置、匹配队列 |
 | 消息队列 | NATS / Redis Streams | 事件驱动、轻量 |
 | 前端 | React Native（移动端）| 跨平台，劳动者 App + 消费者 App |
 | | React（管理后台）| |
-| AI | 开源模型本地部署 + 云端 API | 数据主权优先 |
+| AI 服务层 | **Python**（独立微服务）| AI/ML 生态最完善，模型推理、NLP、数据处理 |
+| 原生编译 | GraalVM Native Image | 启动快、内存省，降低部署成本 |
 | 部署 | Docker + docker-compose（起步）→ K8s 多区域（规模化后） | 单一中心化起步，渐进式区域拆分 |
 | CI/CD | GitHub Actions | 开源友好 |
+| 构建工具 | Gradle (Kotlin DSL) | Kotlin 原生支持、DSL 灵活 |
 
-> 注：技术选型是初始建议，最终由社区技术委员会讨论决定。
+### 4.3 为什么选 Spring Boot 4.x + Kotlin
+
+1. **性能**：JDK 21 虚拟线程（Project Loom）让匹配引擎这类高并发 I/O 场景性能极佳，无需异步框架复杂度。
+2. **类型安全**：Kotlin 强类型 + 空安全，支付分账等金额逻辑更可靠，运行时错误更少。
+3. **金融/支付行业标准**：Java/Kotlin 是金融领域事实标准，支付分账模块生态成熟。
+4. **模块化单体**：Spring DI 天然支持模块化单体架构，模块边界清晰，未来拆分微服务无缝。
+5. **GraalVM 原生镜像**：启动时间毫秒级，内存占用极低，符合"低成本运营"理念。
+6. **开发效率**：Kotlin 简洁度接近 Python，配合 AI 编程工具（Copilot/Cursor），开发效率不输动态语言。
+7. **Spring Boot 4.x 新特性**：虚拟线程一等支持、更好的可观测性、更轻量的运行时。
+
+> 注：技术选型可由社区技术委员会通过 RFC 流程讨论修订。
 
 ---
 
@@ -254,22 +282,30 @@ commons-engine/
 │   ├── ARCHITECTURE.md      ← 本文档
 │   ├── GOVERNANCE.md
 │   └── rfcs/                 ← 技术提案
-├── packages/
-│   ├── matching-engine/
-│   ├── payment/
-│   ├── rating/
-│   ├── dispute/
-│   ├── dispatch/
-│   ├── governance/
-│   ├── identity/
-│   └── ai-services/
+├── build.gradle.kts          ← 根构建文件（Gradle Kotlin DSL）
+├── settings.gradle.kts       ← 多模块声明
+├── backend/                  ← Spring Boot 4.x 多模块（Kotlin）
+│   ├── matching-engine/      ← 匹配引擎
+│   ├── payment/              ← 支付分账
+│   ├── rating/               ← 信用评价
+│   ├── dispute/              ← 纠纷仲裁
+│   ├── dispatch/             ← 调度引擎
+│   ├── governance/           ← 治理模块
+│   ├── identity/             ← 会员与身份
+│   ├── platform-core/        ← 共享内核（领域模型、事件、工具）
+│   └── app/                  ← 启动模块（聚合所有模块，单一部署）
+├── ai-services/              ← Python AI 服务层（独立部署）
+│   ├── customer-service/     ← 智能客服
+│   ├── content-moderation/   ← 内容审核
+│   ├── dispatch-optimizer/   ← 调度优化
+│   └── requirements.txt
 ├── deployments/
 │   ├── docker-compose.yml
 │   └── helm/                 ← K8s（阶段 3）
 ├── clients/
-│   ├── worker-app/           ← 劳动者 App
-│   ├── consumer-app/         ← 消费者 App
-│   └── admin-console/        ← 管理后台
+│   ├── worker-app/           ← 劳动者 App（React Native）
+│   ├── consumer-app/         ← 消费者 App（React Native）
+│   └── admin-console/        ← 管理后台（React）
 └── CONTRIBUTING.md
 ```
 
