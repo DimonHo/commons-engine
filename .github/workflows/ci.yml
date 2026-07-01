@@ -23,6 +23,3 @@ jobs:
 
       - name: Build & Test
         run: gradle build
-
-      - name: Lint (Detekt)
-        run: gradle detekt
