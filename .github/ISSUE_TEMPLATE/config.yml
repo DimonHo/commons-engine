@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 社区讨论 / 战略 / 治理辩论
+    url: https://github.com/DimonHo/commons-engine/discussions
+    about: 战略、治理、社区话题请到 Discussions；Issue 仅用于可追踪的任务与缺陷。

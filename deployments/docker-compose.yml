@@ -1,0 +1,33 @@
+# 公地引擎本地开发依赖（阶段1 MVP）
+# 用法：cd deployments && docker-compose up -d
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: commons-postgres
+    environment:
+      POSTGRES_USER: commons
+      POSTGRES_PASSWORD: commons
+      POSTGRES_DB: commons
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commons"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: commons-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
