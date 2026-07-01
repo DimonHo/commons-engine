@@ -95,9 +95,9 @@ class GovernanceServiceTest {
         )
 
         // 赞成 60%（简单多数但不到 2/3）
-        service.castVote(proposal.id, "w1", StakeholderType.WORKER, VoteChoice.YES)    // 0.4
         service.castVote(proposal.id, "c1", StakeholderType.CONSUMER, VoteChoice.YES)  // 0.3
-        service.castVote(proposal.id, "cm1", StakeholderType.COMMUNITY, VoteChoice.NO) // 0.3
+        service.castVote(proposal.id, "cm1", StakeholderType.COMMUNITY, VoteChoice.YES) // 0.3
+        service.castVote(proposal.id, "w1", StakeholderType.WORKER, VoteChoice.NO)    // 0.4
 
         val result = service.tallyVotes(proposal.id)
         assertFalse(result.passed, "修宪需 2/3 多数，60% 不够")
