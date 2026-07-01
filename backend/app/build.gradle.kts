@@ -24,6 +24,6 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinTest> {
+tasks.withType<Test> {
     useJUnitPlatform()
 }
