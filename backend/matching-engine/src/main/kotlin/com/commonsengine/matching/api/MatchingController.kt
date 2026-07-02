@@ -1,6 +1,7 @@
 package com.commonsengine.matching.api
 
 import com.commonsengine.matching.engine.MatchingEngine
+import com.commonsengine.matching.service.WorkerLocationService
 import com.commonsengine.platform.domain.ConsumerId
 import com.commonsengine.platform.domain.RequestId
 import com.commonsengine.platform.domain.ServiceRequest
@@ -19,7 +20,10 @@ import org.springframework.web.bind.annotation.RestController
  */
 @RestController
 @RequestMapping("/api/v1/matching")
-open class MatchingController(private val engine: MatchingEngine) {
+open class MatchingController(
+    private val engine: MatchingEngine,
+    private val locationService: WorkerLocationService,
+) {
 
     /** 健康检查 + 当前策略 */
     @GetMapping("/health")
@@ -36,9 +40,23 @@ open class MatchingController(private val engine: MatchingEngine) {
         return mapOf("status" to "ok", "currentStrategy" to engine.currentStrategy())
     }
 
-    /** 执行匹配 */
+    /**
+     * 手动匹配——调用方提供候选列表（兼容旧接口）
+     */
     @PostMapping("/match")
     fun match(@RequestBody body: MatchRequest): MatchResponse {
+        val request = toServiceRequest(body)
+        val candidates = body.candidates.map { it.toWorker() }
+        return doMatch(request, candidates)
+    }
+
+    /**
+     * 自动匹配——系统从数据库检索附近劳动者（#37 PostGIS 地理索引）
+     *
+     * 调用方只需提供位置和服务类型，系统自动查找 radiusMeters 范围内的劳动者。
+     */
+    @PostMapping("/match/auto")
+    fun autoMatch(@RequestBody body: AutoMatchRequest): MatchResponse {
         val request = ServiceRequest(
             id = RequestId.random(),
             consumerId = ConsumerId(body.consumerId),
@@ -46,18 +64,51 @@ open class MatchingController(private val engine: MatchingEngine) {
             pickupLocation = GeoPoint(body.pickupLat, body.pickupLng),
         )
 
-        val candidates = body.candidates.map { w ->
-            Worker(
-                id = WorkerId(w.id),
-                name = w.name,
-                currentLocation = GeoPoint(w.lat, w.lng),
-                rating = w.rating,
-                activeOrderCount = w.activeOrderCount,
-            )
-        }
+        val candidates = locationService.findNearbyWorkers(
+            center = request.pickupLocation,
+            radiusMeters = body.radiusMeters ?: 5000.0,
+            maxActiveOrders = body.maxActiveOrders ?: 3,
+        )
 
+        return doMatch(request, candidates)
+    }
+
+    /**
+     * 劳动者上报位置（心跳）
+     */
+    @PostMapping("/workers/{workerId}/location")
+    fun updateLocation(
+        workerId: String,
+        @RequestBody body: LocationUpdate,
+    ): Map<String, String> {
+        locationService.upsertLocation(
+            workerId = workerId,
+            name = body.name,
+            lat = body.lat,
+            lng = body.lng,
+            serviceTypes = body.serviceTypes?.joinToString(",") ?: "",
+            rating = body.rating ?: 5.0,
+            activeOrderCount = body.activeOrderCount ?: 0,
+        )
+        return mapOf("status" to "ok")
+    }
+
+    // ── 内部方法 ──────────────────────────────────────
+
+    private fun toServiceRequest(body: MatchRequest) = ServiceRequest(
+        id = RequestId.random(),
+        consumerId = ConsumerId(body.consumerId),
+        type = ServiceType.valueOf(body.serviceType),
+        pickupLocation = GeoPoint(body.pickupLat, body.pickupLng),
+    )
+
+    private fun doMatch(request: ServiceRequest, candidates: List<Worker>): MatchResponse {
         val result = engine.match(request, candidates)
-            ?: return MatchResponse(matched = false, reason = "无合格候选劳动者", strategy = engine.currentStrategy())
+            ?: return MatchResponse(
+                matched = false,
+                reason = "无合格候选劳动者（候选数: ${candidates.size}）",
+                strategy = engine.currentStrategy(),
+            )
 
         return MatchResponse(
             matched = true,
@@ -82,6 +133,15 @@ data class MatchRequest(
     val candidates: List<CandidateDto>,
 )
 
+data class AutoMatchRequest(
+    val consumerId: String,
+    val serviceType: String,
+    val pickupLat: Double,
+    val pickupLng: Double,
+    val radiusMeters: Double? = null,
+    val maxActiveOrders: Int? = null,
+)
+
 data class CandidateDto(
     val id: String,
     val name: String,
@@ -89,6 +149,23 @@ data class CandidateDto(
     val lng: Double,
     val rating: Double = 5.0,
     val activeOrderCount: Int = 0,
+) {
+    fun toWorker() = Worker(
+        id = WorkerId(id),
+        name = name,
+        currentLocation = GeoPoint(lat, lng),
+        rating = rating,
+        activeOrderCount = activeOrderCount,
+    )
+}
+
+data class LocationUpdate(
+    val name: String,
+    val lat: Double,
+    val lng: Double,
+    val serviceTypes: List<String>? = null,
+    val rating: Double? = null,
+    val activeOrderCount: Int? = null,
 )
 
 data class MatchResponse(

@@ -1,54 +1,31 @@
 version: "3.9"
 
+# 公地引擎开发环境基础设施
+# 启动：docker compose -f deployments/docker-compose.yml up -d
+# 停止：docker compose -f deployments/docker-compose.yml down
+# 清理：docker compose -f deployments/docker-compose.yml down -v
+
 services:
-  # ── 核心业务后端（Spring Boot 4.x + Kotlin）──────────────────
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/commons_engine
-      SPRING_DATASOURCE_USERNAME: commons
-      SPRING_DATASOURCE_PASSWORD: commons_dev
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: "6379"
-
-  # ── AI 服务层（Python 独立部署）──────────────────────────────
-  ai-services:
-    build:
-      context: ./ai-services
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      BACKEND_URL: http://backend:8080
-
-  # ── 基础设施 ──────────────────────────────────────────────────
   postgres:
     image: postgis/postgis:16-3.4
+    container_name: commons-engine-db
     environment:
       POSTGRES_DB: commons_engine
       POSTGRES_USER: commons
-      POSTGRES_PASSWORD: commons_dev
+      POSTGRES_PASSWORD: commons_dev_pwd
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U commons"]
+      test: ["CMD-SHELL", "pg_isready -U commons -d commons_engine"]
       interval: 5s
-      timeout: 3s
-      retries: 5
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
+    container_name: commons-engine-redis
     ports:
       - "6379:6379"
     healthcheck:
