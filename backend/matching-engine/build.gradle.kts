@@ -1,5 +1,7 @@
 plugins {
     kotlin("jvm") version "2.3.0"
+    kotlin("plugin.jpa") version "2.3.0"
+    kotlin("plugin.spring") version "2.3.0"
 }
 
 group = "com.commonsengine"
@@ -16,8 +18,11 @@ dependencies {
     implementation(project(":backend:platform-core"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("com.h2database:h2")
     testImplementation(kotlin("test"))
 }
 
