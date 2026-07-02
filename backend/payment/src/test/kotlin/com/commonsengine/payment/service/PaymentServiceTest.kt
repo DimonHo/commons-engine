@@ -3,17 +3,24 @@ package com.commonsengine.payment.service
 import com.commonsengine.payment.domain.SettlementRule
 import com.commonsengine.payment.domain.Transaction
 import com.commonsengine.payment.domain.TransactionId
-import com.commonsengine.payment.ledger.LedgerBook
+import com.commonsengine.payment.domain.TransactionStatus
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class PaymentServiceTest {
 
-    private val service = PaymentService()
+    @Autowired
+    private lateinit var service: PaymentService
 
     private fun tx(amount: BigDecimal = BigDecimal("100.00")) = Transaction(
         id = TransactionId.random(),
@@ -26,7 +33,7 @@ class PaymentServiceTest {
     @Test
     fun `charge changes status to CHARGED`() {
         val charged = service.charge(tx())
-        assertEquals(com.commonsengine.payment.domain.TransactionStatus.CHARGED, charged.status)
+        assertEquals(TransactionStatus.CHARGED, charged.status)
     }
 
     @Test
@@ -90,5 +97,15 @@ class PaymentServiceTest {
                 commonsFundRate = BigDecimal("0.10"), // 总和 = 105%
             )
         }
+    }
+
+    @Test
+    fun `refund records event in ledger`() {
+        val charged = service.charge(tx())
+        val refunded = service.refund(charged, "服务取消")
+
+        assertTrue(refunded)
+        val history = service.getTransactionHistory(charged.id)
+        assertEquals(2, history.size) // ChargeCreated + RefundIssued
     }
 }
