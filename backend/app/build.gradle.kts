@@ -24,9 +24,13 @@ dependencies {
     implementation(project(":backend:dispute"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.postgresql:postgresql")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("com.h2database:h2")
 }
 
 tasks.withType<Test> {

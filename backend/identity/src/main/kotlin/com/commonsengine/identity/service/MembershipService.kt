@@ -5,24 +5,29 @@ import com.commonsengine.identity.domain.MemberId
 import com.commonsengine.identity.domain.MemberRole
 import com.commonsengine.identity.domain.MemberStatus
 import com.commonsengine.identity.domain.WorkerProfile
+import com.commonsengine.identity.infrastructure.persistence.MemberRepository
+import com.commonsengine.identity.infrastructure.persistence.WorkerProfileRepository
+import com.commonsengine.identity.infrastructure.persistence.toDomain
+import com.commonsengine.identity.infrastructure.persistence.toEntity
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 会员管理服务
  *
  * 管理合作社成员的注册、查询、状态变更。
- * 当前使用内存存储（MVP），后续替换为 PostgreSQL。
+ * 使用 PostgreSQL 持久化（通过 Spring Data JPA）。
  */
 @Service
-open class MembershipService {
-
-    private val members = ConcurrentHashMap<String, Member>()
-    private val workerProfiles = ConcurrentHashMap<String, WorkerProfile>()
+open class MembershipService(
+    private val memberRepository: MemberRepository,
+    private val workerProfileRepository: WorkerProfileRepository,
+) {
 
     /** 注册新成员 */
-    fun register(name: String, phone: String, roles: Set<MemberRole>): Member {
+    @Transactional
+    open fun register(name: String, phone: String, roles: Set<MemberRole>): Member {
         require(name.isNotBlank()) { "成员姓名不能为空" }
         require(phone.isNotBlank()) { "手机号不能为空" }
         require(roles.isNotEmpty()) { "至少需要一个角色" }
@@ -33,47 +38,57 @@ open class MembershipService {
             phone = phone,
             roles = roles,
         )
-        members[member.id.value] = member
-        return member
+        val saved = memberRepository.save(member.toEntity())
+        return saved.toDomain()
     }
 
     /** 查询成员 */
-    fun findById(id: MemberId): Member? = members[id.value]
+    @Transactional(readOnly = true)
+    open fun findById(id: MemberId): Member? =
+        memberRepository.findById(id.value).orElse(null)?.toDomain()
 
     /** 查询所有成员 */
-    fun findAll(): List<Member> = members.values.toList()
+    @Transactional(readOnly = true)
+    open fun findAll(): List<Member> =
+        memberRepository.findAll().map { it.toDomain() }
 
     /** 注册劳动者档案 */
-    fun registerWorkerProfile(profile: WorkerProfile): WorkerProfile {
-        require(members.containsKey(profile.memberId.value)) {
+    @Transactional
+    open fun registerWorkerProfile(profile: WorkerProfile): WorkerProfile {
+        require(memberRepository.existsById(profile.memberId.value)) {
             "成员 ${profile.memberId.value} 不存在，无法创建劳动者档案"
         }
-        workerProfiles[profile.memberId.value] = profile
-        return profile
+        val saved = workerProfileRepository.save(profile.toEntity())
+        return saved.toDomain()
     }
 
     /** 查询劳动者的档案 */
-    fun findWorkerProfile(memberId: MemberId): WorkerProfile? = workerProfiles[memberId.value]
+    @Transactional(readOnly = true)
+    open fun findWorkerProfile(memberId: MemberId): WorkerProfile? =
+        workerProfileRepository.findById(memberId.value).orElse(null)?.toDomain()
 
     /** 暂停成员（违反规则/调查中） */
-    fun suspend(memberId: MemberId, reason: String): Member? {
-        val member = members[memberId.value] ?: return null
-        val updated = member.copy(status = MemberStatus.SUSPENDED)
-        members[memberId.value] = updated
-        return updated
+    @Transactional
+    open fun suspend(memberId: MemberId, reason: String): Member? {
+        val entity = memberRepository.findById(memberId.value).orElse(null) ?: return null
+        entity.status = MemberStatus.SUSPENDED.name
+        return memberRepository.save(entity).toDomain()
     }
 
     /** 成员退社 */
-    fun withdraw(memberId: MemberId): Member? {
-        val member = members[memberId.value] ?: return null
-        val updated = member.copy(status = MemberStatus.WITHDRAWN)
-        members[memberId.value] = updated
-        return updated
+    @Transactional
+    open fun withdraw(memberId: MemberId): Member? {
+        val entity = memberRepository.findById(memberId.value).orElse(null) ?: return null
+        entity.status = MemberStatus.WITHDRAWN.name
+        return memberRepository.save(entity).toDomain()
     }
 
     /** 统计：各角色人数 */
-    fun roleStatistics(): Map<MemberRole, Int> {
-        val activeMembers = members.values.filter { it.status == MemberStatus.ACTIVE }
+    @Transactional(readOnly = true)
+    open fun roleStatistics(): Map<MemberRole, Int> {
+        val activeMembers = memberRepository
+            .findByStatus(MemberStatus.ACTIVE.name)
+            .map { it.toDomain() }
         return MemberRole.entries.associateWith { role ->
             activeMembers.count { role in it.roles }
         }
