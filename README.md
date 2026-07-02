@@ -90,10 +90,34 @@ AI 时代第一次让"非烧钱模式"有可能在成本上和资本平台正面
 
 - [x] **阶段 0**：核心小组组建，章程与宣言起草，仓库建立
 - [~] **阶段 1（3-9 月）**：公地层 MVP——匹配 / 分账 / 评价 / 仲裁 / 治理五个核心模块
-  - ✅ 五大模块 + 身份 + 调度 + 平台核心的**内存版 MVP 已实现**（Spring Boot 4.x + Kotlin，CI 全绿）；反榨取约束参数 RFC 已落地（docs/rfcs/0001）
-  - ⬜ **收尾进行中**：持久化层（PostgreSQL/PostGIS）+ 端到端集成测试 + 可运行 demo（见 Epic [#35](https://github.com/DimonHo/commons-engine/issues/35)）。完成后正式宣告阶段 1 达成
+  - ✅ 五大模块 + 身份 + 调度 + 平台核心 MVP 已实现（Spring Boot 4.x + Kotlin）
+  - ✅ **持久化层**：PostgreSQL/PostGIS + Flyway + JPA（身份/匹配/支付三大模块已落库）
+  - ✅ **端到端集成测试**：叫车→匹配→派单→分账→评价全链路验证通过
+  - ✅ **可运行 demo**：docker-compose + 冒烟脚本（`deployments/smoke-test.sh`）
+  - ⬜ 阶段1 正式宣告完成（待社区验证后标记）
 - [ ] **阶段 2（9-18 月）**：第一个城市试点跑通真实单量，账目公开，证明无补贴也能单位经济为正
 - [ ] **阶段 3（18 月+）**：全国扩展，按区域拆分后端节点，用户无感
+
+## 快速启动
+
+```bash
+# 1. 克隆仓库
+git clone git@github.com:DimonHo/commons-engine.git
+cd commons-engine
+
+# 2. 启动基础设施（PostgreSQL + PostGIS + Redis）
+docker compose -f deployments/docker-compose.yml up -d
+
+# 3. 构建并运行
+./gradlew bootRun
+
+# 4. 冒烟测试（另一个终端）
+bash deployments/smoke-test.sh
+```
+
+冒烟测试验证全链路：注册消费者+劳动者 → 位置上报 → 自动匹配 → 健康检查。
+
+开发时使用 H2 内存数据库（`-Dspring.profiles.active=test`），无需 Docker。
 
 ## 联系与讨论
 

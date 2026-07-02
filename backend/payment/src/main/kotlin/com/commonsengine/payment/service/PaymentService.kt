@@ -23,8 +23,8 @@ import java.util.UUID
  */
 @Service
 open class PaymentService(
-    private val gateway: PaymentGateway = MockPaymentGateway(),
-    private val ledger: LedgerBook = LedgerBook(),
+    private val gateway: PaymentGateway,
+    private val ledger: LedgerBook,
 ) {
 
     /**
