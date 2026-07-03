@@ -1,10 +1,11 @@
 -- =====================================================
 -- 公地引擎 V1 初始化迁移
--- 创建核心表结构：身份/会员系统 + PostGIS 扩展
+-- 创建核心表结构：身份/会员系统
 -- =====================================================
-
--- 启用 PostGIS 扩展（地理空间索引）
-CREATE EXTENSION IF NOT EXISTS postgis;
+-- 说明：曾在此处 `CREATE EXTENSION postgis`，但当前无任何迁移/实体使用
+-- PostGIS 类型（worker_locations 用 lat/lng 平面列 + bounding-box 检索），
+-- 属于未使用的硬依赖，会导致非 PostGIS 的 PostgreSQL 无法启动（破坏 demo）。
+-- 待 #44 真正采用 ST_DWithin + geography 时再由新迁移启用 postgis 扩展。
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- -----------------------------------------------------

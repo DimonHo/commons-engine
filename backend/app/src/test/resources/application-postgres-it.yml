@@ -1,0 +1,14 @@
+# 集成测试 profile：镜像 demo 默认运行路径（真实 PostgreSQL + Flyway + ddl-auto=validate）
+# 数据源 URL/账号/密码由 PostgresFlywayIntegrationTest 的 @DynamicPropertySource 运行时覆盖。
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true

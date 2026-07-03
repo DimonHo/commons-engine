@@ -26,11 +26,15 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.springframework.boot:spring-boot-flyway")
     implementation("org.postgresql:postgresql")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.h2database:h2")
+    // 真实 PostgreSQL 集成测试（嵌入式，无需 docker/root）
+    // 用于防止 H2 测试 profile 掩盖 Flyway/PostgreSQL 特有问题（如 ddl-auto: validate）
+    testImplementation("io.zonky.test:embedded-postgres:2.0.7")
 }
 
 tasks.withType<Test> {
