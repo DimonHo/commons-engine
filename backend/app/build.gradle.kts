@@ -28,6 +28,9 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-flyway")
     implementation("org.postgresql:postgresql")
+    // Jackson 3.x Kotlin 模块——Spring Boot 4.x 用 Jackson 3（tools.jackson 命名空间），
+    // 必须显式声明 Kotlin 模块，否则无法反序列化 Kotlin data class（POST 体全部 400/转换失败）
+    implementation("tools.jackson.module:jackson-module-kotlin:3.1.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

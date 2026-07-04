@@ -6,6 +6,7 @@ import com.commonsengine.identity.domain.WorkerProfile
 import com.commonsengine.identity.service.MembershipService
 import com.commonsengine.platform.domain.ServiceType
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -27,7 +28,7 @@ open class MembershipController(private val service: MembershipService) {
 
     /** 查询成员详情 */
     @GetMapping("/{id}")
-    fun findById(id: String): MemberResponse? = service.findById(com.commonsengine.identity.domain.MemberId(id))?.toResponse()
+    fun findById(@PathVariable id: String): MemberResponse? = service.findById(com.commonsengine.identity.domain.MemberId(id))?.toResponse()
 
     /** 查询全部成员 */
     @GetMapping
@@ -39,7 +40,7 @@ open class MembershipController(private val service: MembershipService) {
 
     /** 注册劳动者档案 */
     @PostMapping("/{id}/worker-profile")
-    fun registerWorkerProfile(id: String, @RequestBody body: WorkerProfileRequest): WorkerProfileResponse? {
+    fun registerWorkerProfile(@PathVariable id: String, @RequestBody body: WorkerProfileRequest): WorkerProfileResponse? {
         val profile = WorkerProfile(
             memberId = com.commonsengine.identity.domain.MemberId(id),
             serviceTypes = body.serviceTypes.mapNotNull { runCatching { ServiceType.valueOf(it) }.getOrNull() }.toSet(),

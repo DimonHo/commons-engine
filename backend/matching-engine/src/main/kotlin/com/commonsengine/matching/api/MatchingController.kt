@@ -10,6 +10,7 @@ import com.commonsengine.platform.domain.Worker
 import com.commonsengine.platform.domain.WorkerId
 import com.commonsengine.platform.geo.GeoPoint
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -78,7 +79,7 @@ open class MatchingController(
      */
     @PostMapping("/workers/{workerId}/location")
     fun updateLocation(
-        workerId: String,
+        @PathVariable workerId: String,
         @RequestBody body: LocationUpdate,
     ): Map<String, String> {
         locationService.upsertLocation(
