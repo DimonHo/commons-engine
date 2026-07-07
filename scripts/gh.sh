@@ -84,14 +84,12 @@ gh_check() {
         echo "NO_TOKEN: 需要配置 GitHub token"
         return 1
     fi
-    # NOTE: gh_api 的 curl 输出多行 JSON，用 head -1 会在 curl 仍写入时关闭管道，
-    # 触发 SIGPIPE → 非0 退出码 → 在本文件顶层 `set -o pipefail` 下使整个函数非0 返回。
-    # 修复：在此管道局部关闭 pipefail（各 Agent 的 gh_check 守卫即可正常工作）。
-    local result
-    set +o pipefail
-    result=$(gh_api GET "" 2>&1 | sed 1q)
-    set -o pipefail
-    if echo "$result" | grep -q "Bad credentials"; then
+    # 历史问题：曾用 `gh_api GET "" | head -1` 截取首行再 grep，
+    # 但 GitHub 401 响应的 "Bad credentials" 在第 2 行（首行只是 `{`），
+    # 故检测永远不命中；且 head -1 在顶层 `set -o pipefail` 下因 SIGPIPE 使函数返回非0。
+    # 修复：直接对完整输出 grep（grep 会读完整个流，不会提前关闭管道 → 无 SIGPIPE；
+    #       且扫描完整响应体 → "Bad credentials" 可命中）。错误响应仅 4 行，开销可忽略。
+    if gh_api GET "" 2>&1 | grep -q "Bad credentials"; then
         echo "BAD_TOKEN: token 无效或已过期"
         return 1
     fi
