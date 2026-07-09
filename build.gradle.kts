@@ -63,18 +63,22 @@ subprojects {
                     "--parallel",
                 )
                 if (detektBaselineFile != null) {
-                    cmd.addAll(listOf("--baseline", detektBaselineFile.absolutePath))
+                    cmd.addAll(listOf("--baseline", detektBaselineFile!!.absolutePath))
                 }
                 logger.lifecycle("  detekt CLI: ${layout.projectDirectory.dir("src").asFile.name}")
                 // warn 级不阻断：detekt CLI 退出码 0=clean / 1=violations，我们容忍 1
-                val result = project.exec {
-                    commandLine = cmd
-                    isIgnoreExitValue = true
+                // 使用 ProcessBuilder 而非 Gradle exec API（doLast 内 DSL 类型推断受限）
+                val process = ProcessBuilder(cmd).redirectErrorStream(true).start()
+                val output = process.inputStream.bufferedReader().readText()
+                process.waitFor()
+                val exitValue = process.exitValue()
+                if (output.isNotBlank()) {
+                    logger.lifecycle(output.take(2000))
                 }
-                if (result.exitValue == 0) {
+                if (exitValue == 0) {
                     logger.lifecycle("  ✓ detekt: 无违规")
                 } else {
-                    logger.lifecycle("  ⚠ detekt: 发现违规（exit ${result.exitValue}）——见 $txtReport")
+                    logger.lifecycle("  ⚠ detekt: 发现违规（exit $exitValue）——见 $txtReport")
                     logger.lifecycle("    （阶段1 容忍 detekt 违规，后续收紧为 fail）")
                 }
             }
