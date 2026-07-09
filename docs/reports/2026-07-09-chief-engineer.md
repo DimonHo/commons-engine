@@ -15,7 +15,7 @@
 | 开放 PR | **0** |
 | 已合并 PR（全历史） | 3（#34/#42/#43） |
 | 近 14 天提交 | 50+ |
-| CI 状态 | ✅ 上一轮绿灯（a758c10 #28912005353）；本轮 f1291a9 **排队中**（#28984312918） |
+| CI 状态 | ✅ **全绿**（d28c7dd run #28984433016——含 detekt + JaCoCo 验证通过） |
 | 风险等级 | 🟡（决策瓶颈持续，工程侧无阻塞） |
 
 ---
@@ -31,7 +31,7 @@
 | DOC-1 | 🔴 阻塞 | ✅ 完成 | CONTRIBUTING.md 重写——pytest→gradlew test，删除阶段0描述，补充 bootRun/smoke-test |
 | DOC-2 | 🟡 重要 | ✅ 完成 | ARCHITECTURE.md 逐层/逐表标注实现状态（✅/⏳/📋） |
 | DOC-4 | 🟢 改进 | ✅ 完成 | RFC-001 状态从「草案」→「部分实现」，10 参数逐项标注 |
-| DEBT-2 | 🟡 重要 | ✅ 完成 | detekt CLI + JaCoCo 配置提交（#46 绕过 KGP 2.3.0 不兼容） |
+| DEBT-2 | 🟡 重要 | ✅ 完成 | detekt CLI + JaCoCo 配置提交（#46 绕过 KGP 2.3.0 不兼容），CI 验证通过 |
 | SHELL-4 | 🟢 改进 | ✅ 完成 | 8 个临时脚本归档到 scripts/archive/ |
 | governance 测试 | — | ✅ 完成 | detekt 风格修正（trailing comma） |
 
@@ -59,7 +59,7 @@
 
 今日无新建 Issue（整改项通过直接提交完成，无需 Issue 追踪）。
 
-**Issue #46**（detekt + 覆盖率）的配置已提交验证，待 CI 绿灯后可关闭。
+**Issue #46**（detekt + 覆盖率）的配置已提交验证，CI 绿灯（d28c7dd），**可关闭**。
 
 ---
 
@@ -67,13 +67,8 @@
 
 ### 🛡️ 审核Agent（09:00）
 
-1. **验证 CI**：检查 run #28984312918（f1291a9）是否绿灯。如果绿灯：
-   - 确认 detekt 任务在 CI 可执行（`./gradlew detekt`）
-   - 确认 JaCoCo 报告生成（`build/reports/jacoco/`）
-   - 关闭 Issue #46
-2. **审查 f1291a9 提交**：20 个文件变更，重点看：
-   - `build.gradle.kts` detekt CLI 方案是否健壮（依赖 detachedConfiguration 拉取 CLI jar）
-   - `docs/ARCHITECTURE.md` 标注是否准确
+1. **CI 已验证通过** ✅：run #28984433016（d28c7dd）全绿，detekt + JaCoCo 正常运行。直接**关闭 Issue #46**（detekt CLI + 覆盖率已恢复）。
+2. **审查 d28c7dd 提交**：detekt CLI 任务修复（doLast 内 Gradle exec API 改用 ProcessBuilder），1 个文件变更。
 3. **无开放 PR 需审查**（当前 PR 队列 0）
 
 ### 📊 运营Agent（10:00）
@@ -109,7 +104,7 @@
 | 里程碑 | 目标日期 | 状态 |
 |--------|---------|------|
 | 整改清单执行（Agent 可推部分） | 7/9 ✅ | **今日完成** |
-| CI 验证 detekt/JaCoCo + 关闭 #46 | 7/9 | 等 CI 结果 |
+| CI 验证 detekt/JaCoCo + 关闭 #46 | 7/9 ✅ | **CI 全绿，待审核Agent 关闭 Issue** |
 | **#47 选址草案人类评审定稿** | 7/12（建议） | ⏳ 待人类 |
 | **#48 监管合规调研启动** | 7/12（建议） | ⏳ 待人类 |
 | 阶段2 工程蓝图（4 模块落库拆 Issue） | 7/14 | 🔨 下一变更 |
@@ -118,10 +113,10 @@
 
 ## 本日产出摘要
 
-- **1 个提交**（f1291a9），20 个文件，+890 / -66 行
-- **5 项整改完成**（DOC-1/DOC-2/DOC-4/DEBT-2/SHELL-4）
-- **1 项配置提交**（governance 测试风格修正）
-- **CI 已触发**，排队验证中
+- **3 个提交**（f1291a9 → fdf5dad → d28c7dd），21 个文件
+- **5 项整改完成**（DOC-1/DOC-2/DOC-4/DEBT-2/SHELL-4），CI 全绿验证
+- **1 个 CI 修复**（detekt CLI ProcessBuilder 替代 Gradle exec API）
+- **Issue #46 可关闭**——detekt + JaCoCo 已恢复并在 CI 验证通过
 
 ---
 
