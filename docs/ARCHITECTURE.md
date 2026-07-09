@@ -40,15 +40,18 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                      客户端层（Clients）                      │
 │    劳动者 App  │  消费者 App  │  合作社管理后台  │  API       │
+│                        📋 未启动                              │
 └────────────────────────┬────────────────────────────────────┘
                          │  HTTPS / WebSocket
 ┌────────────────────────┴────────────────────────────────────┐
 │                     API 网关（Gateway）                       │
 │            认证 · 限流 · 路由 · 审计日志                       │
+│                        ⏳ 计划中（阶段2）                      │
 └────────────────────────┬────────────────────────────────────┘
                          │
 ┌────────────────────────┴────────────────────────────────────┐
 │          业务模块层（Spring Boot 4.x · Kotlin）               │
+│              ✅ MVP 已实现（阶段1，2026-07-04）                │
 │                                                              │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
 │  │ 匹配引擎  │ │ 支付分账  │ │ 信用评价  │ │ 纠纷仲裁  │       │
@@ -58,18 +61,26 @@
 │  │ 调度引擎  │ │ 治理模块  │ │ 会员系统  │                    │
 │  │ Dispatch │ │Governance│ │Identity  │                    │
 │  └──────────┘ └──────────┘ └──────────┘                    │
+│                                                              │
+│  持久化状态：matching/payment/identity ✅ 已落库              │
+│              rating/dispute/dispatch/governance ⏳ 仅内存     │
 └────────────────────────┬────────────────────────────────────┘
                          │ HTTP / gRPC
 ┌────────────────────────┴────────────────────────────────────┐
 │              AI 服务层（Python · 独立部署）                    │
 │    客服NLP · 内容审核 · 调度优化 · 文档处理                    │
+│      customer-service ⏳ 骨架 · 其余 📋 未启动                 │
 └────────────────────────┬────────────────────────────────────┘
                          │
 ┌────────────────────────┴────────────────────────────────────┐
 │                    基础设施层（Infra）                        │
 │   PostgreSQL  │  Redis  │  消息队列  │  对象存储  │  地图     │
+│     ✅ 已接入     ⏳ 计划   📋 未启动     📋 未启动    ⏳ 计划    │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+> **实现状态图例**：✅ 已实现 · ⏳ 计划中 / 部分实现 · 📋 未启动
+> 以上标注反映 2026-07-09 仓库实际状态，详见各模块源码与 Issue。
 
 ---
 
@@ -85,6 +96,8 @@
 - 反榨取约束：引擎内置约束参数，防止设计出系统性压低工资的派单黑箱。
 
 **技术方向**：基于地理空间索引（PostGIS / Redis GEO）的实时匹配，事件驱动架构。
+
+> **当前实现**：阶段1 采用 bounding-box 矩形过滤 + 应用层 Haversine 距离计算的两级方案（日均单量 < ~500 足够）。真正的 PostGIS `ST_DWithin` + `geography` + GiST 索引落地见 Issue #44。Redis GEO 未启动。
 
 ### 3.2 支付分账（Payment & Settlement）
 
@@ -172,20 +185,20 @@
 
 ### 4.2 技术栈
 
-| 层 | 选型 | 理由 |
-|----|------|------|
-| 后端语言 | **Kotlin**（JDK 21+）| 简洁、类型安全、协程与虚拟线程并行 |
-| 后端框架 | **Spring Boot 4.x** | 企业级成熟度、模块化单体天然支持、GraalVM 原生镜像 |
-| 数据库 | PostgreSQL + PostGIS | 地理空间、关系数据、成熟开源 |
-| 缓存 | Redis | 实时位置、匹配队列 |
-| 消息队列 | NATS / Redis Streams | 事件驱动、轻量 |
-| 前端 | React Native（移动端）| 跨平台，劳动者 App + 消费者 App |
-| | React（管理后台）| |
-| AI 服务层 | **Python**（独立微服务）| AI/ML 生态最完善，模型推理、NLP、数据处理 |
-| 原生编译 | GraalVM Native Image | 启动快、内存省，降低部署成本 |
-| 部署 | Docker + docker-compose（起步）→ K8s 多区域（规模化后） | 单一中心化起步，渐进式区域拆分 |
-| CI/CD | GitHub Actions | 开源友好 |
-| 构建工具 | Gradle (Kotlin DSL) | Kotlin 原生支持、DSL 灵活 |
+| 层 | 选型 | 理由 | 实现状态 |
+|----|------|------|---------|
+| 后端语言 | **Kotlin**（JDK 21+）| 简洁、类型安全、协程与虚拟线程并行 | ✅ |
+| 后端框架 | **Spring Boot 4.x** | 企业级成熟度、模块化单体天然支持、GraalVM 原生镜像 | ✅ MVP |
+| 数据库 | PostgreSQL + PostGIS | 地理空间、关系数据、成熟开源 | ✅ PostgreSQL（PostGIS ⏳ 待落地） |
+| 缓存 | Redis | 实时位置、匹配队列 | 📋 未启动 |
+| 消息队列 | NATS / Redis Streams | 事件驱动、轻量 | 📋 未启动 |
+| 前端 | React Native（移动端）| 跨平台，劳动者 App + 消费者 App | 📋 未启动 |
+| | React（管理后台）| | 📋 未启动 |
+| AI 服务层 | **Python**（独立微服务）| AI/ML 生态最完善，模型推理、NLP、数据处理 | ⏳ 骨架（1/3 模块） |
+| 原生编译 | GraalVM Native Image | 启动快、内存省，降低部署成本 | 📋 未启动 |
+| 部署 | Docker + docker-compose（起步）→ K8s 多区域（规模化后） | 单一中心化起步，渐进式区域拆分 | ✅ docker-compose |
+| CI/CD | GitHub Actions | 开源友好 | ✅ |
+| 构建工具 | Gradle (Kotlin DSL) | Kotlin 原生支持、DSL 灵活 | ✅ |
 
 ### 4.3 为什么选 Spring Boot 4.x + Kotlin
 
@@ -281,33 +294,37 @@ commons-engine/
 ├── docs/
 │   ├── ARCHITECTURE.md      ← 本文档
 │   ├── GOVERNANCE.md
-│   └── rfcs/                 ← 技术提案
+│   ├── rfcs/                 ← 技术提案
+│   └── reports/              ← Agent 日报
 ├── build.gradle.kts          ← 根构建文件（Gradle Kotlin DSL）
 ├── settings.gradle.kts       ← 多模块声明
 ├── backend/                  ← Spring Boot 4.x 多模块（Kotlin）
-│   ├── matching-engine/      ← 匹配引擎
-│   ├── payment/              ← 支付分账
-│   ├── rating/               ← 信用评价
-│   ├── dispute/              ← 纠纷仲裁
-│   ├── dispatch/             ← 调度引擎
-│   ├── governance/           ← 治理模块
-│   ├── identity/             ← 会员与身份
+│   ├── matching-engine/      ← 匹配引擎          ✅ 已落库
+│   ├── payment/              ← 支付分账          ✅ 已落库
+│   ├── rating/               ← 信用评价          ⏳ 仅内存
+│   ├── dispute/              ← 纠纷仲裁          ⏳ 仅内存
+│   ├── dispatch/             ← 调度引擎          ⏳ 仅内存
+│   ├── governance/           ← 治理模块          ⏳ 仅内存
+│   ├── identity/             ← 会员与身份        ✅ 已落库
 │   ├── platform-core/        ← 共享内核（领域模型、事件、工具）
 │   └── app/                  ← 启动模块（聚合所有模块，单一部署）
 ├── ai-services/              ← Python AI 服务层（独立部署）
-│   ├── customer-service/     ← 智能客服
-│   ├── content-moderation/   ← 内容审核
-│   ├── dispatch-optimizer/   ← 调度优化
+│   ├── customer-service/     ← 智能客服          ⏳ 骨架（18行）
+│   ├── content-moderation/   ← 内容审核          📋 未启动
+│   ├── dispatch-optimizer/   ← 调度优化          📋 未启动
 │   └── requirements.txt
 ├── deployments/
-│   ├── docker-compose.yml
-│   └── helm/                 ← K8s（阶段 3）
-├── clients/
+│   ├── docker-compose.yml    ✅
+│   └── helm/                 ← K8s（阶段 3）      📋
+├── clients/                  ← 客户端层           📋 全部未启动
 │   ├── worker-app/           ← 劳动者 App（React Native）
 │   ├── consumer-app/         ← 消费者 App（React Native）
 │   └── admin-console/        ← 管理后台（React）
+├── scripts/                  ← 辅助脚本（gh.sh / smoke-test.sh 等）
 └── CONTRIBUTING.md
 ```
+
+> **图例**：✅ 已实现 · ⏳ 部分实现 · 📋 未启动（状态截至 2026-07-09）
 
 ### 7.2 RFC 流程
 

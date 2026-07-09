@@ -1,0 +1,42 @@
+# .spec-superflow.yaml — lightweight state machine
+# Derived data. Always rebuildable from artifacts. Lost/corrupt → fall back to content-level detection.
+
+# === Core state ===
+state: exploring
+workflow: auto
+
+# === Hashes (fast staleness detection) ===
+artifacts_hash: null
+contract_hash: null
+
+# === Execution progress ===
+execution_mode: null
+batches_completed: 0
+test_result: null
+spec_merged: false
+
+# === Metadata ===
+change_name: project-health-check
+last_transition: 2026-07-08T19:56:28.577Z
+last_transition_from: null
+last_transition_to: null
+
+# === Decision points ===
+dp_0_decisions: 项目健康检查：诊断所有文档矛盾/缺口/空壳/技术债，产出整改清单。范围=全局，不含新功能设计
+dp_0_result: confirmed
+dp_0_confirmed: true
+dp_0_timestamp: 2026-07-08T19:56:38Z
+dp_1_result: confirmed: 项目健康检查，5维度整改清单
+dp_1_timestamp: 2026-07-08T19:58:10Z
+dp_2_result: approved: 5维度17项整改清单，含1项直接修复(detekt)
+dp_2_timestamp: 2026-07-08T20:00:22Z
+dp_3_result: null
+dp_3_timestamp: null
+dp_4_result: null
+dp_4_timestamp: null
+dp_5_result: null
+dp_5_timestamp: null
+dp_6_result: null
+dp_6_timestamp: null
+dp_7_result: null
+dp_7_timestamp: null

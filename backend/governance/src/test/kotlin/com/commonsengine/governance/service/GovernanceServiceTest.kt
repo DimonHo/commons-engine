@@ -47,7 +47,10 @@ class GovernanceServiceTest {
         govField.isAccessible = true
         @Suppress("UNCHECKED_CAST")
         val proposalsMap = govField.get(service) as ConcurrentHashMap<String, com.commonsengine.governance.domain.Proposal>
-        proposalsMap[proposal.id.value] = proposal.copy(discussionDeadline = pastDeadline, status = com.commonsengine.governance.domain.ProposalStatus.DISCUSSION)
+        proposalsMap[proposal.id.value] = proposal.copy(
+            discussionDeadline = pastDeadline,
+            status = com.commonsengine.governance.domain.ProposalStatus.DISCUSSION,
+        )
 
         service.startVote(proposal.id)
 

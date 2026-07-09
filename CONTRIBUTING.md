@@ -60,7 +60,7 @@
 
 较大的架构变更或新功能，请走 RFC 流程：
 
-1. 复制 `docs/rfcs/0000-template.md`（待创建）为 `docs/rfcs/0000-短标题.md`
+1. 复制 `docs/rfcs/0000-template.md` 为 `docs/rfcs/00NN-短标题.md`
 2. 填写提案内容
 3. 提交 PR，标题以 `[RFC]` 开头
 4. 社区讨论至少 14 天
@@ -68,19 +68,28 @@
 
 ### 开发环境
 
+**前置要求**：JDK 21+、Docker、Git。
+
 ```bash
 # 克隆仓库
 git clone git@github.com:你的用户名/commons-engine.git
 cd commons-engine
 
-# （阶段 1 MVP 代码就绪后）启动开发环境
+# 启动开发数据库（PostgreSQL + PostGIS）
 docker-compose up -d
 
-# 运行测试
-pytest  # 后端
+# 运行全部测试（Kotlin 后端）
+./gradlew test
+
+# 启动应用（Spring Boot 4.x）
+./gradlew :backend:app:bootRun
+
+# 端到端冒烟验证（叫车→匹配→派单→分账→评价）
+bash deployments/smoke-test.sh
 ```
 
-> MVP 代码尚未就绪。仓库当前处于阶段 0：文档与章程阶段。
+> ✅ 阶段 1 MVP 已就绪（2026-07-04）。以上命令均可运行。
+> 若本地未安装 JDK 21，可仅运行 `docker-compose up -d` 启动数据库，依赖 CI 验证构建。
 
 ---
 

@@ -1,39 +1,67 @@
-build:
-  parallel: true
+# 公地引擎 detekt 配置 (#46)
+# 策略：基于默认规则集，阶段1 先 warn 不阻断（ignoreFailures=true），
+#       逐步收紧。此文件只覆写需要放宽的规则。
+# detekt 版本：1.23.8（兼容 Kotlin 2.3.0）
+# 生成基线：./gradlew detektBaseline  → config/detekt/baseline.xml
 
 config:
   validation: true
   warningsAsErrors: false
+  excludes: ''
+
+# ── 放宽项（公地引擎当前阶段可接受的偏差）──────────────
 
 complexity:
   active: true
   LongMethod:
-    threshold: 60
-  LongParameterList:
-    functionThreshold: 6
-    constructorThreshold: 7
+    active: true
+    threshold: 80          # MVP 阶段方法可较长，后续收紧到 60
   ComplexCondition:
-    threshold: 5
+    active: true
+    threshold: 6
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 20
 
 style:
   active: true
   WildcardImport:
-    active: false
+    active: false          # Kotlin Spring 项目常用通配导入
   ReturnCount:
-    active: false
+    active: false          # 早期验证逻辑多 early-return
   MagicNumber:
-    active: false
+    active: false          # MVP 大量阈值/常量，后续提取常量
   MaxLineLength:
+    active: true
     maxLineLength: 140
+    excludePackageStatements: true
+    excludeImportStatements: true
+  ThrowsCount:
+    active: false
+  LoopWithTooManyJumpStatements:
+    active: false
 
 exceptions:
   active: true
+  SwallowedException:
+    active: false          # 早期兜底逻辑，后续收紧
+
+naming:
+  active: true
+  FunctionNaming:
+    active: true
+    functionPattern: '([a-z][a-zA-Z0-9]*)|(`.*`)'
+  TopLevelPropertyNaming:
+    active: false
 
 empty-blocks:
   active: true
+  EmptyFunctionBlock:
+    active: true
+    ignoreOverridden: true
 
-formatting:
+potential-bugs:
   active: true
-  autoCorrect: true
-  Indentation:
-    indentSize: 4
+
+performance:
+  active: true
