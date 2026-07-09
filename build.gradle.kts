@@ -63,7 +63,7 @@ subprojects {
                     "--parallel",
                 )
                 if (detektBaselineFile != null) {
-                    cmd.addAll(listOf("--baseline", detektBaselineFile!!.absolutePath))
+                    cmd.addAll(listOf("--baseline", detektBaselineFile.absolutePath))
                 }
                 logger.lifecycle("  detekt CLI: ${layout.projectDirectory.dir("src").asFile.name}")
                 // warn 级不阻断：detekt CLI 退出码 0=clean / 1=violations，我们容忍 1
