@@ -57,3 +57,7 @@ Thumbs.db
 coverage/
 htmlcov/
 .coverage
+
+# Temp API artifacts
+scripts/_*.json
+scripts/_*.py
