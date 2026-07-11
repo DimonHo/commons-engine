@@ -84,15 +84,19 @@ gh_check() {
         echo "NO_TOKEN: 需要配置 GitHub token"
         return 1
     fi
-    # 历史问题：曾用 `gh_api GET "" | head -1` 截取首行再 grep，
-    # 但 GitHub 401 响应的 "Bad credentials" 在第 2 行（首行只是 `{`），
-    # 故检测永远不命中；且 head -1 在顶层 `set -o pipefail` 下因 SIGPIPE 使函数返回非0。
-    # 修复：直接对完整输出 grep（grep 会读完整个流，不会提前关闭管道 → 无 SIGPIPE；
-    #       且扫描完整响应体 → "Bad credentials" 可命中）。错误响应仅 4 行，开销可忽略。
-    if gh_api GET "" 2>&1 | grep -q "Bad credentials"; then
-        echo "BAD_TOKEN: token 无效或已过期"
+    # 用 /user 端点验证 token 有效性——需要正确的 auth scope
+    local http_code; http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "Authorization: token $token" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/user")
+    if [ "$http_code" = "200" ]; then
+        echo "OK: token 有效"
+        return 0
+    elif [ "$http_code" = "401" ]; then
+        echo "BAD_TOKEN: token 无效或已过期 (HTTP 401)"
+        return 1
+    else
+        echo "UNKNOWN: token 检测异常 (HTTP $http_code)"
         return 1
     fi
-    echo "OK: token 有效"
-    return 0
 }
