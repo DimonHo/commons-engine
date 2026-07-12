@@ -2,11 +2,12 @@ package com.commonsengine.rating.service
 
 import com.commonsengine.rating.domain.CreditProfile
 import com.commonsengine.rating.domain.Rating
-import com.commonsengine.rating.domain.RatingDirection
 import com.commonsengine.rating.domain.RatingId
-import com.commonsengine.rating.domain.RatingTag
+import com.commonsengine.rating.infrastructure.persistence.RatingRepository
+import com.commonsengine.rating.infrastructure.persistence.toDomain
+import com.commonsengine.rating.infrastructure.persistence.toEntity
 import org.springframework.stereotype.Service
-import java.util.concurrent.ConcurrentHashMap
+import org.springframework.transaction.annotation.Transactional
 
 /**
  * 信用评价服务
@@ -15,34 +16,41 @@ import java.util.concurrent.ConcurrentHashMap
  * 1. 双向评价——劳动者也能评价消费者
  * 2. 反惩罚——评价不挂钩接单资格，仅作参考
  * 3. 数据可携带——劳动者可导出自己的信用记录
+ *
+ * 持久化：使用 JPA + PostgreSQL，重启不丢数据。
  */
 @Service
-open class RatingService {
-
-    private val ratings = ConcurrentHashMap<String, Rating>()
+open class RatingService(
+    private val repository: RatingRepository,
+) {
 
     /** 提交评价 */
-    fun submit(rating: Rating): Rating {
-        ratings[rating.id.value] = rating
+    @Transactional
+    open fun submit(rating: Rating): Rating {
+        repository.save(rating.toEntity())
         return rating
     }
 
     /** 查询某人收到的所有评价 */
-    fun findReceived(memberId: String): List<Rating> =
-        ratings.values.filter { it.rateeId == memberId }
+    @Transactional(readOnly = true)
+    open fun findReceived(memberId: String): List<Rating> =
+        repository.findByRateeId(memberId).map { it.toDomain() }
 
     /** 查询某人发出的所有评价 */
-    fun findGiven(memberId: String): List<Rating> =
-        ratings.values.filter { it.raterId == memberId }
+    @Transactional(readOnly = true)
+    open fun findGiven(memberId: String): List<Rating> =
+        repository.findByRaterId(memberId).map { it.toDomain() }
 
     /** 查询某笔交易的评价（双方向） */
-    fun findByTransaction(transactionId: String): List<Rating> =
-        ratings.values.filter { it.transactionId == transactionId }
+    @Transactional(readOnly = true)
+    open fun findByTransaction(transactionId: String): List<Rating> =
+        repository.findByTransactionId(transactionId).map { it.toDomain() }
 
     /**
      * 聚合信用画像
      */
-    fun getCreditProfile(memberId: String): CreditProfile {
+    @Transactional(readOnly = true)
+    open fun getCreditProfile(memberId: String): CreditProfile {
         val received = findReceived(memberId)
         if (received.isEmpty()) {
             return CreditProfile(
@@ -69,7 +77,8 @@ open class RatingService {
     /**
      * 导出信用记录（数据归个人——劳动者可带走）
      */
-    fun exportProfile(memberId: String): String {
+    @Transactional(readOnly = true)
+    open fun exportProfile(memberId: String): String {
         val profile = getCreditProfile(memberId)
         val received = findReceived(memberId)
 

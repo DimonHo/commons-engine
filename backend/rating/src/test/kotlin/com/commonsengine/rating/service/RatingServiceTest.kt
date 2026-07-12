@@ -8,10 +8,18 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.annotation.Transactional
 
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class RatingServiceTest {
 
-    private val service = RatingService()
+    @Autowired
+    private lateinit var service: RatingService
 
     private fun rating(
         rater: String = "c1",
@@ -91,5 +99,41 @@ class RatingServiceTest {
         val profile = service.getCreditProfile("w1")
         assertEquals(2, profile.tagFrequency[RatingTag.POLITE])
         assertEquals(2, profile.tagFrequency[RatingTag.PUNCTUAL])
+    }
+
+    @Test
+    fun `find by transaction returns both directions`() {
+        service.submit(rating(rater = "c1", ratee = "w1", dir = RatingDirection.CONSUMER_TO_WORKER))
+        service.submit(rating(rater = "w1", ratee = "c1", dir = RatingDirection.WORKER_TO_CONSUMER))
+
+        val txRatings = service.findByTransaction("tx-001")
+        assertEquals(2, txRatings.size)
+    }
+
+    @Test
+    fun `find given returns ratings by rater`() {
+        service.submit(rating(rater = "c1", ratee = "w1"))
+        service.submit(rating(rater = "c1", ratee = "w2"))
+        service.submit(rating(rater = "w1", ratee = "c1"))
+
+        val given = service.findGiven("c1")
+        assertEquals(2, given.size)
+    }
+
+    @Test
+    fun `tags persist and reload correctly`() {
+        val tags = setOf(RatingTag.POLITE, RatingTag.PUNCTUAL, RatingTag.PROFESSIONAL)
+        service.submit(rating(ratee = "w1", tags = tags))
+
+        val received = service.findReceived("w1")
+        assertEquals(tags, received[0].tags)
+    }
+
+    @Test
+    fun `rating with comment persists`() {
+        service.submit(rating(ratee = "w1").copy(comment = "很好"))
+
+        val received = service.findReceived("w1")
+        assertEquals("很好", received[0].comment)
     }
 }
