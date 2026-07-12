@@ -1,21 +1,34 @@
 package com.commonsengine.governance.service
 
+import com.commonsengine.governance.domain.ProposalStatus
 import com.commonsengine.governance.domain.ProposalType
 import com.commonsengine.governance.domain.StakeholderType
 import com.commonsengine.governance.domain.VoteChoice
+import com.commonsengine.governance.infrastructure.persistence.ProposalRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.ConcurrentHashMap
 
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class GovernanceServiceTest {
 
-    private val service = GovernanceService()
+    @Autowired
+    private lateinit var service: GovernanceService
+
+    @Autowired
+    private lateinit var proposalRepository: ProposalRepository
 
     @Test
     fun `create proposal sets 30 day discussion for regular proposals`() {
@@ -41,16 +54,10 @@ class GovernanceServiceTest {
     fun `weighted voting works correctly`() {
         val proposal = service.createProposal("测试投票", "描述", "member-1")
 
-        // 手动创建一个已过讨论期的提案
-        val pastDeadline = Instant.now().minus(1, ChronoUnit.DAYS)
-        val govField = GovernanceService::class.java.getDeclaredField("proposals")
-        govField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val proposalsMap = govField.get(service) as ConcurrentHashMap<String, com.commonsengine.governance.domain.Proposal>
-        proposalsMap[proposal.id.value] = proposal.copy(
-            discussionDeadline = pastDeadline,
-            status = com.commonsengine.governance.domain.ProposalStatus.DISCUSSION,
-        )
+        // Set past deadline directly via repository
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
+        entity.discussionDeadline = Instant.now().minus(1, ChronoUnit.DAYS)
+        proposalRepository.save(entity)
 
         service.startVote(proposal.id)
 
@@ -69,15 +76,12 @@ class GovernanceServiceTest {
     @Test
     fun `one person one vote`() {
         val proposal = service.createProposal("测试", "描述", "member-1")
-        // 直接设置提案为投票阶段
-        val govField = GovernanceService::class.java.getDeclaredField("proposals")
-        govField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val proposalsMap = govField.get(service) as ConcurrentHashMap<String, com.commonsengine.governance.domain.Proposal>
-        proposalsMap[proposal.id.value] = proposal.copy(
-            discussionDeadline = Instant.now().minusSeconds(1),
-            status = com.commonsengine.governance.domain.ProposalStatus.VOTING,
-        )
+
+        // Set past deadline and start voting via repository
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
+        entity.discussionDeadline = Instant.now().minusSeconds(1)
+        entity.status = ProposalStatus.VOTING
+        proposalRepository.save(entity)
 
         service.castVote(proposal.id, "voter-1", StakeholderType.WORKER, VoteChoice.YES)
         assertThrows<IllegalArgumentException> {
@@ -88,14 +92,11 @@ class GovernanceServiceTest {
     @Test
     fun `charter amendment requires two thirds majority`() {
         val proposal = service.createProposal("修宪", "描述", "member-1", ProposalType.CHARTER_AMENDMENT)
-        val govField = GovernanceService::class.java.getDeclaredField("proposals")
-        govField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val proposalsMap = govField.get(service) as ConcurrentHashMap<String, com.commonsengine.governance.domain.Proposal>
-        proposalsMap[proposal.id.value] = proposal.copy(
-            discussionDeadline = Instant.now().minusSeconds(1),
-            status = com.commonsengine.governance.domain.ProposalStatus.VOTING,
-        )
+
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
+        entity.discussionDeadline = Instant.now().minusSeconds(1)
+        entity.status = ProposalStatus.VOTING
+        proposalRepository.save(entity)
 
         // 赞成 60%（简单多数但不到 2/3）
         service.castVote(proposal.id, "c1", StakeholderType.CONSUMER, VoteChoice.YES)  // 0.3
@@ -104,5 +105,94 @@ class GovernanceServiceTest {
 
         val result = service.tallyVotes(proposal.id)
         assertFalse(result.passed, "修宪需 2/3 多数，60% 不够")
+    }
+
+    // ── 持久化测试 ─────────────────────────────────────
+
+    @Test
+    fun `create proposal persists and can be found`() {
+        val proposal = service.createProposal("持久化测试", "测试描述", "member-persist")
+
+        val found = service.findProposal(proposal.id)
+        assertNotNull(found)
+        assertEquals("持久化测试", found!!.title)
+        assertEquals("测试描述", found.description)
+        assertEquals("member-persist", found.proposedBy)
+        assertEquals(ProposalStatus.DISCUSSION, found.status)
+    }
+
+    @Test
+    fun `find non-existent proposal returns null`() {
+        val found = service.findProposal(com.commonsengine.governance.domain.ProposalId("no-such-proposal"))
+        assertNull(found)
+    }
+
+    @Test
+    fun `find all proposals returns persisted list`() {
+        service.createProposal("提案A", "描述A", "member-1")
+        service.createProposal("提案B", "描述B", "member-2")
+
+        val all = service.findAllProposals()
+        assertTrue(all.size >= 2)
+        assertTrue(all.any { it.title == "提案A" })
+        assertTrue(all.any { it.title == "提案B" })
+    }
+
+    @Test
+    fun `tally votes updates proposal status to approved`() {
+        val proposal = service.createProposal("通过测试", "描述", "member-1")
+
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
+        entity.discussionDeadline = Instant.now().minusSeconds(1)
+        entity.status = ProposalStatus.VOTING
+        proposalRepository.save(entity)
+
+        // 劳动者赞成（0.4）+ 消费者赞成（0.3）= 0.7 > 0.5
+        service.castVote(proposal.id, "w1", StakeholderType.WORKER, VoteChoice.YES)
+        service.castVote(proposal.id, "c1", StakeholderType.CONSUMER, VoteChoice.YES)
+
+        service.tallyVotes(proposal.id)
+
+        val found = service.findProposal(proposal.id)!!
+        assertEquals(ProposalStatus.APPROVED, found.status)
+    }
+
+    @Test
+    fun `tally votes updates proposal status to rejected`() {
+        val proposal = service.createProposal("否决测试", "描述", "member-1")
+
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
+        entity.discussionDeadline = Instant.now().minusSeconds(1)
+        entity.status = ProposalStatus.VOTING
+        proposalRepository.save(entity)
+
+        // 只有劳动者反对（0.4），无人赞成 → 0% < 50%
+        service.castVote(proposal.id, "w1", StakeholderType.WORKER, VoteChoice.NO)
+
+        service.tallyVotes(proposal.id)
+
+        val found = service.findProposal(proposal.id)!!
+        assertEquals(ProposalStatus.REJECTED, found.status)
+    }
+
+    @Test
+    fun `start vote transitions status to voting`() {
+        val proposal = service.createProposal("投票状态测试", "描述", "member-1")
+
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
+        entity.discussionDeadline = Instant.now().minus(1, ChronoUnit.DAYS)
+        proposalRepository.save(entity)
+
+        val updated = service.startVote(proposal.id)
+        assertNotNull(updated)
+        assertEquals(ProposalStatus.VOTING, updated!!.status)
+    }
+
+    @Test
+    fun `proposal type persists correctly`() {
+        val proposal = service.createProposal("预算提案", "描述", "member-1", ProposalType.BUDGET_ALLOCATION)
+
+        val found = service.findProposal(proposal.id)!!
+        assertEquals(ProposalType.BUDGET_ALLOCATION, found.type)
     }
 }
