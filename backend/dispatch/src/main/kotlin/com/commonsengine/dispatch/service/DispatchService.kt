@@ -54,9 +54,16 @@ open class DispatchService(
     open fun savePreferences(prefs: WorkerPreferences): WorkerPreferences {
         val existing = workerPreferencesRepository.findByWorkerId(prefs.workerId)
         if (existing != null) {
-            // 更新已有记录
-            val updated = prefs.toEntity().copy(id = existing.id)
-            workerPreferencesRepository.save(updated)
+            // 更新已有记录——保留数据库主键
+            val entity = prefs.toEntity()
+            existing.preferredServiceTypes = entity.preferredServiceTypes
+            existing.preferredRegions = entity.preferredRegions
+            existing.excludedRegions = entity.excludedRegions
+            existing.preferredTimeSlots = entity.preferredTimeSlots
+            existing.excludedTimeSlots = entity.excludedTimeSlots
+            existing.maxConcurrentOrders = entity.maxConcurrentOrders
+            existing.maxDailyHours = entity.maxDailyHours
+            workerPreferencesRepository.save(existing)
         } else {
             workerPreferencesRepository.save(prefs.toEntity())
         }

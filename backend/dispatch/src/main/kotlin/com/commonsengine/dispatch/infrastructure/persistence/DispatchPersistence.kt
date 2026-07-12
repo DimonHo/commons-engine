@@ -164,29 +164,29 @@ class WorkerPreferencesEntity(
 
     /** JSON: ["RIDE_HAILING","FOOD_DELIVERY"] */
     @Column(name = "preferred_service_types", columnDefinition = "TEXT")
-    val preferredServiceTypes: String? = null,
+    var preferredServiceTypes: String? = null,
 
     /** JSON: ["chengdu_wuhou", ...] */
     @Column(name = "preferred_regions", columnDefinition = "TEXT")
-    val preferredRegions: String? = null,
+    var preferredRegions: String? = null,
 
     /** JSON: ["chengdu_jinjiang", ...] */
     @Column(name = "excluded_regions", columnDefinition = "TEXT")
-    val excludedRegions: String? = null,
+    var excludedRegions: String? = null,
 
     /** JSON: [{"dayOfWeek":1,"startHour":8,"endHour":12}, ...] */
     @Column(name = "preferred_time_slots", columnDefinition = "TEXT")
-    val preferredTimeSlots: String? = null,
+    var preferredTimeSlots: String? = null,
 
     /** JSON: [{"dayOfWeek":7,"startHour":0,"endHour":6}, ...] */
     @Column(name = "excluded_time_slots", columnDefinition = "TEXT")
-    val excludedTimeSlots: String? = null,
+    var excludedTimeSlots: String? = null,
 
     @Column(name = "max_concurrent_orders", nullable = false)
-    val maxConcurrentOrders: Int = 3,
+    var maxConcurrentOrders: Int = 3,
 
     @Column(name = "max_daily_hours", nullable = false)
-    val maxDailyHours: Double = 12.0,
+    var maxDailyHours: Double = 12.0,
 )
 
 // ── WorkerPreferences Entity ↔ Domain ─────────────────
