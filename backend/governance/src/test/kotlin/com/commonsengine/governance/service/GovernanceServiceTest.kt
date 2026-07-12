@@ -4,6 +4,7 @@ import com.commonsengine.governance.domain.ProposalStatus
 import com.commonsengine.governance.domain.ProposalType
 import com.commonsengine.governance.domain.StakeholderType
 import com.commonsengine.governance.domain.VoteChoice
+import com.commonsengine.governance.infrastructure.persistence.ProposalRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -25,6 +26,9 @@ class GovernanceServiceTest {
 
     @Autowired
     private lateinit var service: GovernanceService
+
+    @Autowired
+    private lateinit var proposalRepository: ProposalRepository
 
     @Test
     fun `create proposal sets 30 day discussion for regular proposals`() {
@@ -48,23 +52,12 @@ class GovernanceServiceTest {
 
     @Test
     fun `weighted voting works correctly`() {
-        // Create proposal with past deadline directly via repository
         val proposal = service.createProposal("测试投票", "描述", "member-1")
-        // Use the service's internal method to set past deadline by creating a proposal
-        // then starting vote after deadline
-        // Since we can't directly modify the entity, we test with a proposal
-        // whose deadline is manually set via the repository
 
-        // For this test, we need to bypass the discussion deadline check.
-        // We'll use the repository directly to set a past deadline.
-        val proposalRepo = service.javaClass.getDeclaredField("proposalRepository")
-        proposalRepo.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val repo = proposalRepo.get(service) as com.commonsengine.governance.infrastructure.persistence.ProposalRepository
-
-        val entity = repo.findByProposalId(proposal.id.value)!!
+        // Set past deadline directly via repository
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
         entity.discussionDeadline = Instant.now().minus(1, ChronoUnit.DAYS)
-        repo.save(entity)
+        proposalRepository.save(entity)
 
         service.startVote(proposal.id)
 
@@ -84,16 +77,11 @@ class GovernanceServiceTest {
     fun `one person one vote`() {
         val proposal = service.createProposal("测试", "描述", "member-1")
 
-        // Set past deadline and start voting
-        val proposalRepo = service.javaClass.getDeclaredField("proposalRepository")
-        proposalRepo.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val repo = proposalRepo.get(service) as com.commonsengine.governance.infrastructure.persistence.ProposalRepository
-
-        val entity = repo.findByProposalId(proposal.id.value)!!
+        // Set past deadline and start voting via repository
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
         entity.discussionDeadline = Instant.now().minusSeconds(1)
         entity.status = ProposalStatus.VOTING
-        repo.save(entity)
+        proposalRepository.save(entity)
 
         service.castVote(proposal.id, "voter-1", StakeholderType.WORKER, VoteChoice.YES)
         assertThrows<IllegalArgumentException> {
@@ -105,15 +93,10 @@ class GovernanceServiceTest {
     fun `charter amendment requires two thirds majority`() {
         val proposal = service.createProposal("修宪", "描述", "member-1", ProposalType.CHARTER_AMENDMENT)
 
-        val proposalRepo = service.javaClass.getDeclaredField("proposalRepository")
-        proposalRepo.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val repo = proposalRepo.get(service) as com.commonsengine.governance.infrastructure.persistence.ProposalRepository
-
-        val entity = repo.findByProposalId(proposal.id.value)!!
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
         entity.discussionDeadline = Instant.now().minusSeconds(1)
         entity.status = ProposalStatus.VOTING
-        repo.save(entity)
+        proposalRepository.save(entity)
 
         // 赞成 60%（简单多数但不到 2/3）
         service.castVote(proposal.id, "c1", StakeholderType.CONSUMER, VoteChoice.YES)  // 0.3
@@ -159,15 +142,10 @@ class GovernanceServiceTest {
     fun `tally votes updates proposal status to approved`() {
         val proposal = service.createProposal("通过测试", "描述", "member-1")
 
-        val proposalRepo = service.javaClass.getDeclaredField("proposalRepository")
-        proposalRepo.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val repo = proposalRepo.get(service) as com.commonsengine.governance.infrastructure.persistence.ProposalRepository
-
-        val entity = repo.findByProposalId(proposal.id.value)!!
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
         entity.discussionDeadline = Instant.now().minusSeconds(1)
         entity.status = ProposalStatus.VOTING
-        repo.save(entity)
+        proposalRepository.save(entity)
 
         // 劳动者赞成（0.4）+ 消费者赞成（0.3）= 0.7 > 0.5
         service.castVote(proposal.id, "w1", StakeholderType.WORKER, VoteChoice.YES)
@@ -183,15 +161,10 @@ class GovernanceServiceTest {
     fun `tally votes updates proposal status to rejected`() {
         val proposal = service.createProposal("否决测试", "描述", "member-1")
 
-        val proposalRepo = service.javaClass.getDeclaredField("proposalRepository")
-        proposalRepo.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val repo = proposalRepo.get(service) as com.commonsengine.governance.infrastructure.persistence.ProposalRepository
-
-        val entity = repo.findByProposalId(proposal.id.value)!!
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
         entity.discussionDeadline = Instant.now().minusSeconds(1)
         entity.status = ProposalStatus.VOTING
-        repo.save(entity)
+        proposalRepository.save(entity)
 
         // 只有劳动者反对（0.4），无人赞成 → 0% < 50%
         service.castVote(proposal.id, "w1", StakeholderType.WORKER, VoteChoice.NO)
@@ -206,14 +179,9 @@ class GovernanceServiceTest {
     fun `start vote transitions status to voting`() {
         val proposal = service.createProposal("投票状态测试", "描述", "member-1")
 
-        val proposalRepo = service.javaClass.getDeclaredField("proposalRepository")
-        proposalRepo.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val repo = proposalRepo.get(service) as com.commonsengine.governance.infrastructure.persistence.ProposalRepository
-
-        val entity = repo.findByProposalId(proposal.id.value)!!
+        val entity = proposalRepository.findByProposalId(proposal.id.value)!!
         entity.discussionDeadline = Instant.now().minus(1, ChronoUnit.DAYS)
-        repo.save(entity)
+        proposalRepository.save(entity)
 
         val updated = service.startVote(proposal.id)
         assertNotNull(updated)
