@@ -9,11 +9,19 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class DisputeServiceTest {
 
-    private val service = DisputeService()
+    @Autowired
+    private lateinit var service: DisputeService
 
     @Test
     fun `file creates dispute in FILED status`() {
@@ -86,5 +94,37 @@ class DisputeServiceTest {
         val filed = service.findByStatus(DisputeStatus.FILED)
         assertEquals(1, filed.size)
         assertEquals(d1.id, filed[0].id)
+    }
+
+    @Test
+    fun `evidence urls persist and reload`() {
+        val d = service.file("tx-1", "c1", "w1", DisputeType.DAMAGE_CLAIM, "损坏货物",
+            evidenceUrls = listOf("img1.png", "img2.png"))
+
+        val reloaded = service.findById(d.id)!!
+        assertEquals(2, reloaded.evidenceUrls.size)
+        assertTrue(reloaded.evidenceUrls.contains("img1.png"))
+        assertTrue(reloaded.evidenceUrls.contains("img2.png"))
+    }
+
+    @Test
+    fun `resolution text persists after arbitration`() {
+        val d = service.file("tx-1", "c1", "w1", DisputeType.FARE_DISPUTE, "多收费")
+        service.aiScreening(d.id)
+        service.arbitrate(d.id, VerdictType.FAVOR_FILER, "确有多收")
+
+        val reloaded = service.findById(d.id)!!
+        assertNotNull(reloaded.resolution)
+        assertTrue(reloaded.resolution!!.contains("FAVOR_FILER"))
+        assertNotNull(reloaded.resolvedAt)
+    }
+
+    @Test
+    fun `findAll returns all disputes`() {
+        service.file("tx-1", "c1", "w1", DisputeType.FARE_DISPUTE, "投诉1")
+        service.file("tx-2", "c2", "w2", DisputeType.BEHAVIORAL, "投诉2")
+
+        val all = service.findAll()
+        assertEquals(2, all.size)
     }
 }
