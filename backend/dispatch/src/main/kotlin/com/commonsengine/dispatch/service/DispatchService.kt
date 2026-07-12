@@ -3,9 +3,14 @@ package com.commonsengine.dispatch.service
 import com.commonsengine.dispatch.domain.DispatchTask
 import com.commonsengine.dispatch.domain.RouteSuggestion
 import com.commonsengine.dispatch.domain.WorkerPreferences
+import com.commonsengine.dispatch.infrastructure.persistence.DispatchTaskRepository
+import com.commonsengine.dispatch.infrastructure.persistence.WorkerPreferencesRepository
+import com.commonsengine.dispatch.infrastructure.persistence.toDomain
+import com.commonsengine.dispatch.infrastructure.persistence.toEntity
 import com.commonsengine.platform.geo.GeoPoint
 import com.commonsengine.platform.geo.GeoUtils
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 /**
  * 调度引擎——路径优化与任务安排
@@ -14,14 +19,69 @@ import org.springframework.stereotype.Service
  * 1. 路径优化服务于劳动者效率，而非平台抽成最大化
  * 2. 劳动者可设定工作偏好和边界，引擎尊重这些设定
  * 3. 支持多模式调度（打车实时+预约、外卖多取多送、家政预约）
+ *
+ * 持久化：使用 JPA + PostgreSQL，重启不丢数据。
  */
 @Service
-open class DispatchService {
+open class DispatchService(
+    private val dispatchTaskRepository: DispatchTaskRepository,
+    private val workerPreferencesRepository: WorkerPreferencesRepository,
+) {
+
+    // ── 任务持久化 ──────────────────────────────────────
+
+    /** 保存调度任务 */
+    @Transactional
+    open fun assignTask(task: DispatchTask): DispatchTask {
+        dispatchTaskRepository.save(task.toEntity())
+        return task
+    }
+
+    /** 查询任务 */
+    @Transactional(readOnly = true)
+    open fun findTask(taskId: String): DispatchTask? =
+        dispatchTaskRepository.findByTaskId(taskId)?.toDomain()
+
+    /** 查询某劳动者的所有任务 */
+    @Transactional(readOnly = true)
+    open fun findTasksByWorker(workerId: String): List<DispatchTask> =
+        dispatchTaskRepository.findByWorkerId(workerId).map { it.toDomain() }
+
+    // ── 工作偏好持久化 ──────────────────────────────────
+
+    /** 保存或更新劳动者工作偏好 */
+    @Transactional
+    open fun savePreferences(prefs: WorkerPreferences): WorkerPreferences {
+        val existing = workerPreferencesRepository.findByWorkerId(prefs.workerId)
+        if (existing != null) {
+            // 更新已有记录——保留数据库主键
+            val entity = prefs.toEntity()
+            existing.preferredServiceTypes = entity.preferredServiceTypes
+            existing.preferredRegions = entity.preferredRegions
+            existing.excludedRegions = entity.excludedRegions
+            existing.preferredTimeSlots = entity.preferredTimeSlots
+            existing.excludedTimeSlots = entity.excludedTimeSlots
+            existing.maxConcurrentOrders = entity.maxConcurrentOrders
+            existing.maxDailyHours = entity.maxDailyHours
+            workerPreferencesRepository.save(existing)
+        } else {
+            workerPreferencesRepository.save(prefs.toEntity())
+        }
+        return prefs
+    }
+
+    /** 查询劳动者工作偏好 */
+    @Transactional(readOnly = true)
+    open fun findPreferences(workerId: String): WorkerPreferences? =
+        workerPreferencesRepository.findByWorkerId(workerId)?.toDomain()
+
+    // ── 调度逻辑 ────────────────────────────────────────
 
     /**
      * 检查劳动者是否愿意接受该任务（基于偏好）
      */
-    fun isAcceptableForWorker(task: DispatchTask, prefs: WorkerPreferences): Boolean {
+    @Transactional(readOnly = true)
+    open fun isAcceptableForWorker(task: DispatchTask, prefs: WorkerPreferences): Boolean {
         // 服务类型偏好
         if (prefs.preferredServiceTypes.isNotEmpty() && task.serviceType !in prefs.preferredServiceTypes) {
             return false
@@ -42,7 +102,7 @@ open class DispatchService {
      * 对多个取送点，计算一个较优的访问顺序。
      * 后续可替换为更复杂的 VRP 算法。
      */
-    fun optimizeRoute(
+    open fun optimizeRoute(
         workerLocation: GeoPoint,
         task: DispatchTask,
     ): RouteSuggestion {

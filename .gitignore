@@ -61,3 +61,4 @@ htmlcov/
 # Temp API artifacts
 scripts/_*.json
 scripts/_*.py
+scripts/_*.md
