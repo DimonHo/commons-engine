@@ -9,11 +9,14 @@ import com.commonsengine.governance.domain.Vote
 import com.commonsengine.governance.domain.VoteChoice
 import com.commonsengine.governance.domain.VoteResult
 import com.commonsengine.governance.domain.weight
+import com.commonsengine.governance.infrastructure.persistence.ProposalRepository
+import com.commonsengine.governance.infrastructure.persistence.VoteRepository
+import com.commonsengine.governance.infrastructure.persistence.toDomain
+import com.commonsengine.governance.infrastructure.persistence.toEntity
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * 治理服务——合作社民主治理的技术载体
@@ -25,15 +28,18 @@ import java.util.concurrent.CopyOnWriteArrayList
  * 4. 涉及不可篡改底线的提案无效
  *
  * 注意：治理参数的最终值需由全体大会决定，本服务只做技术载体。
+ *
+ * 持久化：使用 JPA + PostgreSQL，重启不丢数据。
  */
 @Service
-open class GovernanceService {
-
-    private val proposals = ConcurrentHashMap<String, Proposal>()
-    private val votes = CopyOnWriteArrayList<Vote>()
+open class GovernanceService(
+    private val proposalRepository: ProposalRepository,
+    private val voteRepository: VoteRepository,
+) {
 
     /** 提交提案 */
-    fun createProposal(
+    @Transactional
+    open fun createProposal(
         title: String,
         description: String,
         proposedBy: String,
@@ -51,37 +57,45 @@ open class GovernanceService {
             type = type,
             discussionDeadline = Instant.now().plus(discussionDays.toLong(), ChronoUnit.DAYS),
         )
-        proposals[proposal.id.value] = proposal
+        proposalRepository.save(proposal.toEntity())
         return proposal
     }
 
     /** 开启投票（讨论期结束后） */
-    fun startVote(proposalId: ProposalId): Proposal? {
-        val proposal = proposals[proposalId.value] ?: return null
+    @Transactional
+    open fun startVote(proposalId: ProposalId): Proposal? {
+        val entity = proposalRepository.findByProposalId(proposalId.value)
+            ?: return null
+        val proposal = entity.toDomain()
+
         require(proposal.status == ProposalStatus.DISCUSSION) { "提案必须处于讨论状态" }
         require(Instant.now().isAfter(proposal.discussionDeadline)) {
             "讨论期未满，不能开始投票（截止: ${proposal.discussionDeadline}）"
         }
 
-        val updated = proposal.copy(status = ProposalStatus.VOTING)
-        proposals[proposalId.value] = updated
-        return updated
+        entity.status = ProposalStatus.VOTING
+        proposalRepository.save(entity)
+        return entity.toDomain()
     }
 
     /** 投票 */
-    fun castVote(
+    @Transactional
+    open fun castVote(
         proposalId: ProposalId,
         voterId: String,
         stakeholderType: StakeholderType,
         choice: VoteChoice,
     ): Vote {
-        val proposal = proposals[proposalId.value]
+        val entity = proposalRepository.findByProposalId(proposalId.value)
             ?: throw IllegalArgumentException("提案不存在: $proposalId")
+        val proposal = entity.toDomain()
+
         require(proposal.status == ProposalStatus.VOTING) { "提案不在投票阶段" }
 
-        // 检查是否已投票（一人一票）
-        val alreadyVoted = votes.any { it.proposalId == proposalId && it.voterId == voterId }
-        require(!alreadyVoted) { "$voterId 已对此提案投过票" }
+        // 检查是否已投票（一人一票）——数据库唯一约束保障
+        require(!voteRepository.existsByProposalIdAndVoterId(proposalId.value, voterId)) {
+            "$voterId 已对此提案投过票"
+        }
 
         val vote = Vote(
             proposalId = proposalId,
@@ -89,14 +103,16 @@ open class GovernanceService {
             stakeholderType = stakeholderType,
             choice = choice,
         )
-        votes.add(vote)
+        voteRepository.save(vote.toEntity())
         return vote
     }
 
     /** 统计投票结果 */
-    fun tallyVotes(proposalId: ProposalId): VoteResult {
-        val proposalVotes = votes.filter { it.proposalId == proposalId }
-        val proposal = proposals[proposalId.value]
+    @Transactional
+    open fun tallyVotes(proposalId: ProposalId): VoteResult {
+        val proposalVotes = voteRepository.findByProposalId(proposalId.value).map { it.toDomain() }
+        val entity = proposalRepository.findByProposalId(proposalId.value)
+        val proposal = entity?.toDomain()
 
         val yesWeight = proposalVotes.filter { it.choice == VoteChoice.YES }
             .sumOf { it.stakeholderType.weight }
@@ -110,9 +126,9 @@ open class GovernanceService {
         val passed = if (totalValidWeight > 0) yesWeight / totalValidWeight > threshold else false
 
         // 更新提案状态
-        if (proposal != null && proposal.status == ProposalStatus.VOTING) {
-            val newStatus = if (passed) ProposalStatus.APPROVED else ProposalStatus.REJECTED
-            proposals[proposalId.value] = proposal.copy(status = newStatus)
+        if (entity != null && entity.status == ProposalStatus.VOTING) {
+            entity.status = if (passed) ProposalStatus.APPROVED else ProposalStatus.REJECTED
+            proposalRepository.save(entity)
         }
 
         return VoteResult(
@@ -133,8 +149,12 @@ open class GovernanceService {
     }
 
     /** 查询所有提案 */
-    fun findAllProposals(): List<Proposal> = proposals.values.toList()
+    @Transactional(readOnly = true)
+    open fun findAllProposals(): List<Proposal> =
+        proposalRepository.findAll().map { it.toDomain() }
 
     /** 查询提案详情 */
-    fun findProposal(id: ProposalId): Proposal? = proposals[id.value]
+    @Transactional(readOnly = true)
+    open fun findProposal(id: ProposalId): Proposal? =
+        proposalRepository.findByProposalId(id.value)?.toDomain()
 }
