@@ -62,8 +62,9 @@
 │  │ Dispatch │ │Governance│ │Identity  │                    │
 │  └──────────┘ └──────────┘ └──────────┘                    │
 │                                                              │
-│  持久化状态：matching/payment/identity ✅ 已落库              │
-│              rating/dispute/dispatch/governance ⏳ 仅内存     │
+│  持久化状态：8/8 模块全部 JPA 持久化（V1-V7 Flyway）         │
+│  API 层：matching/identity/payment/rating/dispute/           │
+│          dispatch/governance ✅ REST API 全覆盖               │
 └────────────────────────┬────────────────────────────────────┘
                          │ HTTP / gRPC
 ┌────────────────────────┴────────────────────────────────────┐
