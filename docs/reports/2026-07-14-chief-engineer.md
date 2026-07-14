@@ -118,6 +118,7 @@
 | **PR #62 待合并** | 🟡 | CI 全绿后即可合并 | 审核Agent 今日确认 |
 | **异常处理缺失** | 🟡 | 业务校验失败返回 500 而非 400 | #63 新建，P1 |
 | **API 文档缺失** | 🟢 | 无 OpenAPI spec | #64 新建，P2 |
+| **CI 编译错误** | 🟢 | Kotlin 类型推断——已修复 | assertTrue 添加 message 参数 |
 | **工程无阻塞** | 🟢 | 测试补齐后工程基础层完整 | — |
 
 ---
@@ -157,7 +158,8 @@
 
 - **5 个 HTTP 集成测试文件编写**（PaymentApiTest / RatingApiTest / DisputeApiTest / DispatchApiTest / GovernanceApiTest）
 - **30 个测试用例**，覆盖 5 个 Controller 的全部 27 个端点
-- **1 个 PR 分支更新**（merge main + test commit，761 行新增代码）
+- **1 个 CI 编译错误修复**（Kotlin 类型推断——`assertTrue(Set.contains)` 添加 message 参数消歧）
+- **1 个 PR 分支更新**（merge main + test commit + fix commit，763 行新增代码）
 - **3 个新 Issue 创建**（#63 异常处理 P1 / #64 OpenAPI P2 / #65 测试追踪 P1）
 - **1 个 PR 评论**（向维护者报告更新）
 - **PR #62 可合并性修复**（分支与 main 同步）
