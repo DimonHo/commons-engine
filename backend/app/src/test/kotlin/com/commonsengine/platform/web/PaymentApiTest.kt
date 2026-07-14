@@ -146,7 +146,7 @@ class PaymentApiTest {
         val events = objectMapper.readTree(historyResp.body())
         assertTrue(events.size() >= 2, "应至少有 charge + settle 两个事件")
         val types = events.map { it["type"].asText() }.toSet()
-        assertTrue(types.contains("CHARGE_CREATED"))
-        assertTrue(types.contains("SETTLEMENT_COMPLETED"))
+        assertTrue(types.contains("CHARGE_CREATED"), "应包含 CHARGE_CREATED 事件")
+        assertTrue(types.contains("SETTLEMENT_COMPLETED"), "应包含 SETTLEMENT_COMPLETED 事件")
     }
 }
