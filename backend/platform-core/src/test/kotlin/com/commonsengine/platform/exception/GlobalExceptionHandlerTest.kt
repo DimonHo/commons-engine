@@ -1,13 +1,9 @@
 package com.commonsengine.platform.exception
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -63,16 +59,14 @@ class GlobalExceptionHandlerTest {
     ) {
         val result = mvc.perform(get("/test/unexpected"))
             .andExpect(status().isInternalServerError)
+            .andExpect(jsonPath("$.error").value("INTERNAL_ERROR"))
             .andReturn()
 
         val body = result.response.contentAsString
         // 不泄漏堆栈——响应体不应包含 Java 包名或异常类名
-        assertTrue(!body.contains("java.lang"), "500 响应不应泄漏堆栈信息: $body")
-        assertTrue(!body.contains("RuntimeException"), "500 响应不应泄漏异常类名: $body")
-
-        val json = ObjectMapper().readTree(body)
-        assertEquals("INTERNAL_ERROR", json["error"].asText())
-        assertNotNull(json["message"].asText())
+        assert(!body.contains("java.lang")) { "500 响应不应泄漏堆栈信息: $body" }
+        assert(!body.contains("RuntimeException")) { "500 响应不应泄漏异常类名: $body" }
+        assert(!body.contains("jdbc")) { "500 响应不应泄漏内部连接信息: $body" }
     }
 }
 
