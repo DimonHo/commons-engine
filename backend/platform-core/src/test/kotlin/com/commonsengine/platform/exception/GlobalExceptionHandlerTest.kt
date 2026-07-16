@@ -13,16 +13,13 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
-import tools.jackson.databind.ObjectMapper
 
 /**
- * GlobalExceptionHandler 集成测试（#63）
+ * GlobalExceptionHandler integration test (#63).
  *
- * 验证各类异常场景的 HTTP 状态码和响应体结构。
- *
- * 采用与 [com.commonsengine.platform.web.MatchingHttpApiTest] 一致的模式：
- * `@SpringBootTest(RANDOM_PORT)` + JDK `HttpClient`，走完整 HTTP 路径。
- * 不依赖 MockMvc（platform-core 是库模块，无需 spring-boot-test-autoconfigure web.servlet）。
+ * Validates HTTP status codes and response body structure for each
+ * exception type via real HTTP (RANDOM_PORT + JDK HttpClient), matching
+ * the project-wide test pattern.
  */
 @SpringBootTest(
     classes = [ExceptionTestApp::class],
@@ -33,9 +30,6 @@ class GlobalExceptionHandlerTest {
 
     @LocalServerPort
     private var port: Int = 0
-
-    @Suppress("unused")  // Spring 注入
-    private lateinit var objectMapper: ObjectMapper
 
     private val http: HttpClient = HttpClient.newHttpClient()
 
@@ -48,51 +42,53 @@ class GlobalExceptionHandlerTest {
             HttpResponse.BodyHandlers.ofString(),
         )
 
+    /** Extract a JSON string field value by key (simple regex, avoids Jackson dependency). */
+    private fun jsonField(body: String, key: String): String? {
+        val regex = Regex("\"$key\"\\s*:\\s*\"([^\"]+)\"")
+        return regex.find(body)?.groupValues?.getOrNull(1)
+    }
+
     @Test
     fun `IllegalArgumentException returns 400 with BAD_REQUEST error code`() {
         val resp = get("/test/illegal-arg")
-        assertEquals(400, resp.statusCode(), "应返回 400")
-        val tree = objectMapper.readTree(resp.body())
-        assertEquals("BAD_REQUEST", tree["error"].asText())
-        assertEquals("参数不合法测试", tree["message"].asText())
+        assertEquals(400, resp.statusCode(), "should return 400")
+        assertEquals("BAD_REQUEST", jsonField(resp.body(), "error"))
+        assertEquals("参数不合法测试", jsonField(resp.body(), "message"))
     }
 
     @Test
     fun `BusinessRuleException returns 422 with UNPROCESSABLE_ENTITY error code`() {
         val resp = get("/test/business-rule")
-        assertEquals(422, resp.statusCode(), "应返回 422")
-        val tree = objectMapper.readTree(resp.body())
-        assertEquals("UNPROCESSABLE_ENTITY", tree["error"].asText())
-        assertEquals("TRANSACTION_NOT_CHARGED", tree["code"].asText())
-        assertEquals("交易必须为 CHARGED 状态", tree["message"].asText())
+        assertEquals(422, resp.statusCode(), "should return 422")
+        assertEquals("UNPROCESSABLE_ENTITY", jsonField(resp.body(), "error"))
+        assertEquals("TRANSACTION_NOT_CHARGED", jsonField(resp.body(), "code"))
+        assertEquals("交易必须为 CHARGED 状态", jsonField(resp.body(), "message"))
     }
 
     @Test
     fun `NotFoundException returns 404 with resource info`() {
         val resp = get("/test/not-found")
-        assertEquals(404, resp.statusCode(), "应返回 404")
-        val tree = objectMapper.readTree(resp.body())
-        assertEquals("NOT_FOUND", tree["error"].asText())
-        assertEquals("交易 不存在: tx-999", tree["message"].asText())
+        assertEquals(404, resp.statusCode(), "should return 404")
+        assertEquals("NOT_FOUND", jsonField(resp.body(), "error"))
+        assertEquals("交易 不存在: tx-999", jsonField(resp.body(), "message"))
     }
 
     @Test
     fun `RuntimeException returns 500 without stack trace`() {
         val resp = get("/test/unexpected")
-        assertEquals(500, resp.statusCode(), "应返回 500")
+        assertEquals(500, resp.statusCode(), "should return 500")
         val body = resp.body()
-        val tree = objectMapper.readTree(body)
-        assertEquals("INTERNAL_ERROR", tree["error"].asText())
+        assertEquals("INTERNAL_ERROR", jsonField(body, "error"))
 
-        // 不泄漏堆栈——响应体不应包含 Java 包名或异常类名
-        assertFalse(body.contains("java.lang"), "500 响应不应泄漏堆栈信息: $body")
-        assertFalse(body.contains("RuntimeException"), "500 响应不应泄漏异常类名: $body")
-        assertFalse(body.contains("jdbc"), "500 响应不应泄漏内部连接信息: $body")
+        // Response body must not leak stack trace / internal info
+        assertFalse(body.contains("java.lang"), "500 response should not leak stack info: $body")
+        assertFalse(body.contains("RuntimeException"), "500 response should not leak exception class name: $body")
+        assertFalse(body.contains("jdbc"), "500 response should not leak internal connection info: $body")
     }
 }
 
 /**
- * 测试专用 Spring Boot 应用 + 测试 Controller
+ * Minimal Spring Boot app for exception handler testing.
  */
 @SpringBootApplication
 class ExceptionTestApp
