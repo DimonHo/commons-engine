@@ -1,10 +1,9 @@
 package com.commonsengine.payment.api
 
-import com.commonsengine.payment.domain.SettlementRule
 import com.commonsengine.payment.domain.Transaction
 import com.commonsengine.payment.domain.TransactionId
-import com.commonsengine.payment.domain.TransactionStatus
 import com.commonsengine.payment.service.PaymentService
+import com.commonsengine.platform.exception.NotFoundException
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -43,36 +42,26 @@ open class PaymentController(
     }
 
     /**
-     * 执行分账——传入 charge 返回的交易信息
+     * Settle - load authoritative transaction from event store.
      *
-     * @param transactionId 从 charge 响应获取
+     * Transaction fields (amount, workerId) are no longer accepted from
+     * the request body. The service reconstructs them from the
+     * CHARGE_CREATED event, preventing payment-integrity violations.
+     *
+     * Settlement rules are resolved server-side (currently DEFAULT);
+     * client-supplied rate overrides have been removed to prevent
+     * governance bypass.
+     *
+     * @param transactionId from charge response
      */
     @PostMapping("/{transactionId}/settle")
     fun settle(
         @PathVariable transactionId: String,
-        @RequestBody body: SettleRequest,
     ): SettlementResponse {
-        val rule = if (body.workerRate != null && body.operationRate != null && body.commonsRate != null) {
-            SettlementRule(
-                workerShareRate = BigDecimal(body.workerRate.toString()),
-                platformOperationRate = BigDecimal(body.operationRate.toString()),
-                commonsFundRate = BigDecimal(body.commonsRate.toString()),
-            )
-        } else {
-            SettlementRule.DEFAULT
-        }
+        val tx = service.findById(TransactionId(transactionId))
+            ?: throw NotFoundException("Transaction", transactionId)
 
-        // 从请求体重建已收款交易——Transaction 不持久化，需调用方回传
-        val tx = Transaction(
-            id = TransactionId(transactionId),
-            consumerId = body.consumerId,
-            workerId = body.workerId,
-            amount = body.amount,
-            serviceType = body.serviceType ?: "",
-            status = TransactionStatus.CHARGED,
-        )
-
-        val result = service.settle(tx, rule)
+        val result = service.settle(tx)
         return SettlementResponse(
             transactionId = result.transactionId.value,
             totalAmount = result.totalAmount.toString(),
@@ -84,21 +73,22 @@ open class PaymentController(
         )
     }
 
-    /** 退款 */
+    /**
+     * Refund - load authoritative transaction from event store.
+     *
+     * Amount is reconstructed from the CHARGE_CREATED event to ensure
+     * refund amount matches the original charge.
+     */
     @PostMapping("/{transactionId}/refund")
     fun refund(
         @PathVariable transactionId: String,
         @RequestBody body: RefundRequest,
-    ): Map<String, Any> {
-        val tx = Transaction(
-            id = TransactionId(transactionId),
-            consumerId = body.consumerId,
-            workerId = body.workerId,
-            amount = body.amount,
-            serviceType = body.serviceType ?: "",
-        )
+    ): RefundResponse {
+        val tx = service.findById(TransactionId(transactionId))
+            ?: throw NotFoundException("Transaction", transactionId)
+
         val success = service.refund(tx, body.reason)
-        return mapOf("success" to success, "transactionId" to transactionId)
+        return RefundResponse(success = success, transactionId = transactionId)
     }
 
     /** 查询交易流水（公开审计——章程第 4.3 条） */
@@ -113,7 +103,9 @@ open class PaymentController(
                     "transactionId" to event.transactionId.value,
                     "timestamp" to event.timestamp.toString(),
                     "consumerId" to event.consumerId,
+                    "workerId" to event.workerId,
                     "amount" to event.amount.toString(),
+                    "serviceType" to event.serviceType,
                     "paymentChannel" to event.paymentChannel,
                 )
                 is com.commonsengine.payment.domain.LedgerEvent.SettlementCompleted -> mapOf(
@@ -147,21 +139,7 @@ data class ChargeRequest(
     val serviceType: String,
 )
 
-data class SettleRequest(
-    val consumerId: String,
-    val workerId: String,
-    val amount: BigDecimal,
-    val serviceType: String? = null,
-    val workerRate: Double? = null,
-    val operationRate: Double? = null,
-    val commonsRate: Double? = null,
-)
-
 data class RefundRequest(
-    val consumerId: String,
-    val workerId: String,
-    val amount: BigDecimal,
-    val serviceType: String? = null,
     val reason: String,
 )
 
@@ -172,6 +150,11 @@ data class TransactionResponse(
     val amount: String,
     val serviceType: String,
     val status: String,
+)
+
+data class RefundResponse(
+    val success: Boolean,
+    val transactionId: String,
 )
 
 data class SettlementResponse(

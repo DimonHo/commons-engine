@@ -40,12 +40,46 @@ open class PaymentService(
                 transactionId = charged.id,
                 timestamp = Instant.now(),
                 consumerId = charged.consumerId,
+                workerId = charged.workerId,
                 amount = charged.amount,
+                serviceType = charged.serviceType,
                 paymentChannel = gateway.channelName,
             )
         )
 
         return charged
+    }
+
+    /**
+     * 从事件存储重建交易 - settle/refund 加载权威记录。
+     *
+     * 通过 CHARGE_CREATED 事件恢复交易的完整字段（消费者、劳动者、金额、服务类型），
+     * 防止调用方伪造交易信息。
+     *
+     * @return 已收款交易，或 null（交易不存在）
+     */
+    fun findById(txId: TransactionId): Transaction? {
+        val events = ledger.findByTransaction(txId)
+        val chargeEvent = events.filterIsInstance<LedgerEvent.ChargeCreated>().firstOrNull()
+            ?: return null
+
+        val isSettled = events.any { it is LedgerEvent.SettlementCompleted }
+        val isRefunded = events.any { it is LedgerEvent.RefundIssued }
+        val status = when {
+            isRefunded -> TransactionStatus.REFUNDED
+            isSettled -> TransactionStatus.SETTLED
+            else -> TransactionStatus.CHARGED
+        }
+
+        return Transaction(
+            id = chargeEvent.transactionId,
+            consumerId = chargeEvent.consumerId,
+            workerId = chargeEvent.workerId,
+            amount = chargeEvent.amount,
+            serviceType = chargeEvent.serviceType,
+            createdAt = chargeEvent.timestamp,
+            status = status,
+        )
     }
 
     /**
