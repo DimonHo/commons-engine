@@ -41,8 +41,14 @@ class LedgerEventEntity(
     @Column(name = "consumer_id", length = 36)
     val consumerId: String? = null,
 
+    @Column(name = "worker_id", length = 36)
+    val workerId: String? = null,
+
     @Column(name = "amount", precision = 12, scale = 2)
     val amount: BigDecimal? = null,
+
+    @Column(name = "service_type", length = 30)
+    val serviceType: String? = null,
 
     @Column(name = "payment_channel", length = 50)
     val paymentChannel: String? = null,
@@ -70,7 +76,9 @@ fun LedgerEventEntity.toDomain(): LedgerEvent = when (eventType) {
         transactionId = TransactionId(transactionId),
         timestamp = timestamp,
         consumerId = consumerId!!,
+        workerId = workerId!!,
         amount = amount!!,
+        serviceType = serviceType!!,
         paymentChannel = paymentChannel!!,
     )
     "SETTLEMENT_COMPLETED" -> LedgerEvent.SettlementCompleted(
@@ -99,7 +107,9 @@ fun LedgerEvent.toEntity(): LedgerEventEntity = when (this) {
         transactionId = transactionId.value,
         timestamp = timestamp,
         consumerId = consumerId,
+        workerId = workerId,
         amount = amount,
+        serviceType = serviceType,
         paymentChannel = paymentChannel,
     )
     is LedgerEvent.SettlementCompleted -> LedgerEventEntity(

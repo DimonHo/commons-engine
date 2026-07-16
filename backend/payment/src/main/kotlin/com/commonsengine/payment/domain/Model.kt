@@ -87,7 +87,9 @@ sealed class LedgerEvent {
         override val transactionId: TransactionId,
         override val timestamp: Instant,
         val consumerId: String,
+        val workerId: String,
         val amount: BigDecimal,
+        val serviceType: String,
         val paymentChannel: String,
     ) : LedgerEvent()
 
