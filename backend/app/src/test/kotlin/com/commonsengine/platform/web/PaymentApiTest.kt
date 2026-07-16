@@ -97,7 +97,7 @@ class PaymentApiTest {
         assertEquals("80.00", settleJson["workerPayout"].asText())
         assertEquals("15.00", settleJson["platformFee"].asText())
         assertEquals("5.00", settleJson["commonsFund"].asText())
-        assertTrue(settleJson["breakdown"].asText().contains("worker"))
+        assertTrue(settleJson["breakdown"].asText().contains("劳动者"), "breakdown 应包含劳动者分账信息: ${settleJson["breakdown"].asText()}")
     }
 
     @Test

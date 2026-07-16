@@ -106,9 +106,8 @@ class GovernanceApiTest {
 
         // Try to start vote immediately → should fail (discussion period not over)
         val voteResp = post("/api/v1/governance/proposals/$proposalId/start-vote", "")
-        // The service throws IllegalArgumentException, Spring Boot returns 500 by default
-        // (no @RestControllerAdvice yet — this test documents the current behavior)
-        assertEquals(500, voteResp.statusCode(), "讨论期未满时 startVote 应失败（当前无统一异常处理，返回 500）")
+        // GlobalExceptionHandler maps IllegalArgumentException → 400 Bad Request
+        assertEquals(400, voteResp.statusCode(), "讨论期未满时 startVote 应返回 400（GlobalExceptionHandler 已生效）")
     }
 
     @Test
@@ -137,7 +136,7 @@ class GovernanceApiTest {
         // Try to vote before startVote → proposal is in DISCUSSION, not VOTING
         val voteBody = """{"voterId":"voter-1","stakeholderType":"WORKER","choice":"YES"}"""
         val voteResp = post("/api/v1/governance/proposals/$proposalId/vote", voteBody)
-        assertEquals(500, voteResp.statusCode(), "讨论阶段投票应失败（当前无统一异常处理，返回 500）")
+        assertEquals(400, voteResp.statusCode(), "讨论阶段投票应返回 400（GlobalExceptionHandler 已生效）")
     }
 
     @Test
