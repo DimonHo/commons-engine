@@ -5,6 +5,9 @@ import com.commonsengine.governance.domain.ProposalType
 import com.commonsengine.governance.domain.StakeholderType
 import com.commonsengine.governance.domain.VoteChoice
 import com.commonsengine.governance.service.GovernanceService
+import com.commonsengine.platform.support.Enums
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -29,12 +32,12 @@ open class GovernanceController(
 
     /** 提交提案 */
     @PostMapping("/proposals")
-    fun createProposal(@RequestBody body: CreateProposalRequest): ProposalResponse {
+    fun createProposal(@Valid @RequestBody body: CreateProposalRequest): ProposalResponse {
         val proposal = service.createProposal(
             title = body.title,
             description = body.description,
             proposedBy = body.proposedBy,
-            type = runCatching { ProposalType.valueOf(body.type) }.getOrDefault(ProposalType.OTHER),
+            type = Enums.parse<ProposalType>(body.type),
         )
         return proposal.toResponse()
     }
@@ -60,13 +63,13 @@ open class GovernanceController(
     @PostMapping("/proposals/{proposalId}/vote")
     fun castVote(
         @PathVariable proposalId: String,
-        @RequestBody body: CastVoteRequest,
+        @Valid @RequestBody body: CastVoteRequest,
     ): VoteResponse {
         val vote = service.castVote(
             proposalId = ProposalId(proposalId),
             voterId = body.voterId,
-            stakeholderType = StakeholderType.valueOf(body.stakeholderType),
-            choice = VoteChoice.valueOf(body.choice),
+            stakeholderType = Enums.parse<StakeholderType>(body.stakeholderType),
+            choice = Enums.parse<VoteChoice>(body.choice),
         )
         return VoteResponse(
             proposalId = vote.proposalId.value,
@@ -96,10 +99,10 @@ open class GovernanceController(
 // ── DTO ──────────────────────────────────────────────────────────
 
 data class CreateProposalRequest(
-    val title: String,
-    val description: String,
-    val proposedBy: String,
-    val type: String = "OTHER",  // POLICY_CHANGE / SETTLEMENT_RULE / BUDGET_ALLOCATION / CHARTER_AMENDMENT / OTHER
+    @field:NotBlank val title: String,
+    @field:NotBlank val description: String,
+    @field:NotBlank val proposedBy: String,
+    @field:NotBlank val type: String = "OTHER",  // POLICY_CHANGE / SETTLEMENT_RULE / BUDGET_ALLOCATION / CHARTER_AMENDMENT / OTHER
 )
 
 data class ProposalResponse(
@@ -114,9 +117,9 @@ data class ProposalResponse(
 )
 
 data class CastVoteRequest(
-    val voterId: String,
-    val stakeholderType: String,  // WORKER / CONSUMER / COMMUNITY
-    val choice: String,           // YES / NO / ABSTAIN
+    @field:NotBlank val voterId: String,
+    @field:NotBlank val stakeholderType: String,  // WORKER / CONSUMER / COMMUNITY
+    @field:NotBlank val choice: String,           // YES / NO / ABSTAIN
 )
 
 data class VoteResponse(

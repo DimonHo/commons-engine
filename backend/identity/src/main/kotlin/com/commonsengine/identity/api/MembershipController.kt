@@ -5,6 +5,10 @@ import com.commonsengine.identity.domain.VerificationType
 import com.commonsengine.identity.domain.WorkerProfile
 import com.commonsengine.identity.service.MembershipService
 import com.commonsengine.platform.domain.ServiceType
+import com.commonsengine.platform.support.Enums
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -21,8 +25,8 @@ open class MembershipController(private val service: MembershipService) {
 
     /** 注册新成员 */
     @PostMapping("/register")
-    fun register(@RequestBody body: RegisterRequest): MemberResponse {
-        val member = service.register(body.name, body.phone, body.roles.mapNotNull { runCatching { MemberRole.valueOf(it) }.getOrNull() }.toSet())
+    fun register(@Valid @RequestBody body: RegisterRequest): MemberResponse {
+        val member = service.register(body.name, body.phone, Enums.parseAll<MemberRole>(body.roles))
         return member.toResponse()
     }
 
@@ -40,10 +44,10 @@ open class MembershipController(private val service: MembershipService) {
 
     /** 注册劳动者档案 */
     @PostMapping("/{id}/worker-profile")
-    fun registerWorkerProfile(@PathVariable id: String, @RequestBody body: WorkerProfileRequest): WorkerProfileResponse? {
+    fun registerWorkerProfile(@PathVariable id: String, @Valid @RequestBody body: WorkerProfileRequest): WorkerProfileResponse? {
         val profile = WorkerProfile(
             memberId = com.commonsengine.identity.domain.MemberId(id),
-            serviceTypes = body.serviceTypes.mapNotNull { runCatching { ServiceType.valueOf(it) }.getOrNull() }.toSet(),
+            serviceTypes = Enums.parseAll<ServiceType>(body.serviceTypes),
             workRegion = body.workRegion,
             licenseNumber = body.licenseNumber,
         )
@@ -61,9 +65,9 @@ open class MembershipController(private val service: MembershipService) {
 // ── DTO ──────────────────────────────────────────────────────────
 
 data class RegisterRequest(
-    val name: String,
-    val phone: String,
-    val roles: List<String>,
+    @field:NotBlank val name: String,
+    @field:NotBlank val phone: String,
+    @field:NotEmpty val roles: List<String>,
 )
 
 data class MemberResponse(
@@ -76,8 +80,8 @@ data class MemberResponse(
 )
 
 data class WorkerProfileRequest(
-    val serviceTypes: List<String>,
-    val workRegion: String,
+    @field:NotEmpty val serviceTypes: List<String>,
+    @field:NotBlank val workRegion: String,
     val licenseNumber: String? = null,
 )
 

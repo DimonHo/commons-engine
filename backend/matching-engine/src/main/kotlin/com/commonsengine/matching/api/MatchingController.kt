@@ -9,6 +9,9 @@ import com.commonsengine.platform.domain.ServiceType
 import com.commonsengine.platform.domain.Worker
 import com.commonsengine.platform.domain.WorkerId
 import com.commonsengine.platform.geo.GeoPoint
+import com.commonsengine.platform.support.Enums
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -36,7 +39,7 @@ open class MatchingController(
 
     /** 切换匹配策略 */
     @PostMapping("/strategy")
-    fun setStrategy(@RequestBody body: StrategyRequest): Map<String, String> {
+    fun setStrategy(@Valid @RequestBody body: StrategyRequest): Map<String, String> {
         engine.setStrategy(body.strategy)
         return mapOf("status" to "ok", "currentStrategy" to engine.currentStrategy())
     }
@@ -45,7 +48,7 @@ open class MatchingController(
      * 手动匹配——调用方提供候选列表（兼容旧接口）
      */
     @PostMapping("/match")
-    fun match(@RequestBody body: MatchRequest): MatchResponse {
+    fun match(@Valid @RequestBody body: MatchRequest): MatchResponse {
         val request = toServiceRequest(body)
         val candidates = body.candidates.map { it.toWorker() }
         return doMatch(request, candidates)
@@ -57,11 +60,11 @@ open class MatchingController(
      * 调用方只需提供位置和服务类型，系统自动查找 radiusMeters 范围内的劳动者。
      */
     @PostMapping("/match/auto")
-    fun autoMatch(@RequestBody body: AutoMatchRequest): MatchResponse {
+    fun autoMatch(@Valid @RequestBody body: AutoMatchRequest): MatchResponse {
         val request = ServiceRequest(
             id = RequestId.random(),
             consumerId = ConsumerId(body.consumerId),
-            type = ServiceType.valueOf(body.serviceType),
+            type = Enums.parse<ServiceType>(body.serviceType),
             pickupLocation = GeoPoint(body.pickupLat, body.pickupLng),
         )
 
@@ -80,7 +83,7 @@ open class MatchingController(
     @PostMapping("/workers/{workerId}/location")
     fun updateLocation(
         @PathVariable workerId: String,
-        @RequestBody body: LocationUpdate,
+        @Valid @RequestBody body: LocationUpdate,
     ): Map<String, String> {
         locationService.upsertLocation(
             workerId = workerId,
@@ -99,7 +102,7 @@ open class MatchingController(
     private fun toServiceRequest(body: MatchRequest) = ServiceRequest(
         id = RequestId.random(),
         consumerId = ConsumerId(body.consumerId),
-        type = ServiceType.valueOf(body.serviceType),
+        type = Enums.parse<ServiceType>(body.serviceType),
         pickupLocation = GeoPoint(body.pickupLat, body.pickupLng),
     )
 
@@ -124,19 +127,19 @@ open class MatchingController(
 
 // ── DTO ──────────────────────────────────────────────────────────
 
-data class StrategyRequest(val strategy: String)
+data class StrategyRequest(@field:NotBlank val strategy: String)
 
 data class MatchRequest(
-    val consumerId: String,
-    val serviceType: String,
+    @field:NotBlank val consumerId: String,
+    @field:NotBlank val serviceType: String,
     val pickupLat: Double,
     val pickupLng: Double,
     val candidates: List<CandidateDto>,
 )
 
 data class AutoMatchRequest(
-    val consumerId: String,
-    val serviceType: String,
+    @field:NotBlank val consumerId: String,
+    @field:NotBlank val serviceType: String,
     val pickupLat: Double,
     val pickupLng: Double,
     val radiusMeters: Double? = null,
@@ -161,7 +164,7 @@ data class CandidateDto(
 }
 
 data class LocationUpdate(
-    val name: String,
+    @field:NotBlank val name: String,
     val lat: Double,
     val lng: Double,
     val serviceTypes: List<String>? = null,
