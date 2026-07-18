@@ -38,27 +38,28 @@ yarn-error.log*
 *.pem
 *.key
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Docker
-docker-compose.override.yml
-
-# OS
-Thumbs.db
-
-# Misc
-*.log
-coverage/
-htmlcov/
-.coverage
-
-# Temp API artifacts
-scripts/_*.json
-scripts/_*.py
-scripts/_*.md
+# ── Agent / 工作流临时产物 ──────────────────────────
+# PR/Issue 操作的临时草稿、JSON payload、diff dump、一次性回复脚本
+# 不得提交到仓库——它们是过程产物而非工程资产。
+# 这些都是过往 AI agent 会话遗留的临时文件，被 scripts/gh.sh + gh_* 函数统一替代。
+*_diff.txt
+# 下划线前缀的临时文件（_reply_*.txt, _review_*.md, _parse_*.py, _*.json 等）
+/_*.txt
+/_*.md
+/_*.py
+/_*.json
+/scripts/_*
+# PR/Issue body payload 与 review 草稿
+pr*_body.json
+pr*_body.md
+review_pr*.md
+pr*_ci_fixed.md
+# 重复的 GitHub API helper 脚本（已被 scripts/gh.sh 统一）
+comment_issue.py
+post_comment.py
+post_review*.py
+create_pr.py
+submit_reviews.py
+gh_helper.py
+# 第三方二进制（如 jq 替换脚本），按需本地安装，不入库
+scripts/jq
