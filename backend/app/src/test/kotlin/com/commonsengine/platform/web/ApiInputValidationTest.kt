@@ -5,6 +5,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
@@ -216,5 +217,50 @@ class ApiInputValidationTest {
         val body = """{"strategy":""}"""
         val resp = post("/api/v1/matching/strategy", body)
         assertEquals(400, resp.statusCode(), "空 strategy 应返回 400，实际: ${resp.statusCode()} body=${resp.body()}")
+    }
+
+    // ── #71: HttpMessageNotReadableException 信息泄漏加固 ──
+
+    @Test
+    fun `#71 malformed JSON body returns 400 with generic message no internal leak`() {
+        // 故意发送非法 JSON（缺少引号、类型错误等结构性破坏）
+        val malformed = """{"consumerId": INVALID_NOT_A_STRING, "amount": 10.00}"""
+        val resp = post("/api/v1/payment/charge", malformed)
+        assertEquals(400, resp.statusCode(), "非法 JSON 应返回 400，实际: ${resp.statusCode()} body=${resp.body()}")
+        assertTrue(resp.body().contains("BAD_REQUEST"), "应包含 BAD_REQUEST: ${resp.body()}")
+        assertTrue(resp.body().contains("请求体格式错误"), "应返回通用文案: ${resp.body()}")
+        // 关键断言：响应体不得泄漏 Jackson 内部类名 / 字段路径 / 序列化细节
+        assertFalse(resp.body().contains("JsonParseException"), "响应体不得泄漏 Jackson 异常类名: ${resp.body()}")
+        assertFalse(resp.body().contains("MismatchedInputException"), "响应体不得泄漏 MismatchedInputException: ${resp.body()}")
+        assertFalse(resp.body().contains("UnrecognizedPropertyException"), "响应体不得泄漏 UnrecognizedPropertyException: ${resp.body()}")
+        assertFalse(resp.body().contains("at [Source"), "响应体不得泄漏 Jackson 位置信息: ${resp.body()}")
+        assertFalse(resp.body().contains("line:"), "响应体不得泄漏行号信息: ${resp.body()}")
+    }
+
+    @Test
+    fun `#71 wrong type for field returns 400 generic message no field path leak`() {
+        // 类型不匹配：amount 传 boolean，Spring 反序列化失败抛 HttpMessageNotReadableException
+        val wrongType = """{"consumerId":"c","workerId":"w","amount":true,"serviceType":"RIDE_HAILING"}"""
+        val resp = post("/api/v1/payment/charge", wrongType)
+        assertEquals(400, resp.statusCode(), "类型错误应返回 400，实际: ${resp.statusCode()} body=${resp.body()}")
+        assertTrue(resp.body().contains("请求体格式错误"), "应返回通用文案: ${resp.body()}")
+        // 字段路径（如 "amount"）是 Jackson 错误信息的一部分，不应泄漏到响应体
+        assertFalse(resp.body().contains("BigDecimal"), "响应体不得泄漏目标 Java 类型名: ${resp.body()}")
+        assertFalse(resp.body().contains("Boolean"), "响应体不得泄漏源类型线索: ${resp.body()}")
+    }
+
+    @Test
+    fun `#71 field-level validation path still works when body is present but blank`() {
+        // 回归保护：HttpMessageNotReadableException 加固不应影响 @Valid 路径。
+        // 当 JSON 反序列化成功但字段违反 Bean Validation（如空白字符串），
+        // 仍走 MethodArgumentNotValidException 路径，返回字段级错误。
+        // 这与 #68 的 `blank consumerId returns 400` 互补——此处断言响应体不含 Jackson 内部信息。
+        val blankConsumerId = """{"consumerId":"","workerId":"w","amount":"10.00","serviceType":"RIDE_HAILING"}"""
+        val resp = post("/api/v1/payment/charge", blankConsumerId)
+        assertEquals(400, resp.statusCode(), "空白 consumerId 应返回 400，实际: ${resp.statusCode()} body=${resp.body()}")
+        assertTrue(resp.body().contains("consumerId"), "应返回字段级提示: ${resp.body()}")
+        // 加固一致性：@Valid 路径也不应泄漏 Jackson 内部异常类名
+        assertFalse(resp.body().contains("JsonParseException"), "响应体不得泄漏 Jackson 异常类名: ${resp.body()}")
+        assertFalse(resp.body().contains("MismatchedInputException"), "响应体不得泄漏 MismatchedInputException: ${resp.body()}")
     }
 }
