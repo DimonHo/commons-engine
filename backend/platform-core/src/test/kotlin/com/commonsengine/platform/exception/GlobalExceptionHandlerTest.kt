@@ -85,6 +85,26 @@ class GlobalExceptionHandlerTest {
         assertFalse(body.contains("RuntimeException"), "500 response should not leak exception class name: $body")
         assertFalse(body.contains("jdbc"), "500 response should not leak internal connection info: $body")
     }
+
+    @Test
+    fun `HttpMessageNotReadableException returns generic 400 without Jackson leak`() {
+        val resp = http.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:$port/test/not-readable"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{not-valid-json"))
+                .build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(400, resp.statusCode(), "should return 400")
+        val body = resp.body()
+        assertEquals("BAD_REQUEST", jsonField(body, "error"))
+        assertEquals("请求体格式错误或缺失必填字段", jsonField(body, "message"))
+        // Must not echo Jackson / class / field path fragments
+        assertFalse(body.contains("JsonParseException"), "must not leak Jackson class: $body")
+        assertFalse(body.contains("com.fasterxml"), "must not leak package names: $body")
+        assertFalse(body.contains("Unexpected character"), "must not leak parser text: $body")
+    }
 }
 
 /**
@@ -114,5 +134,11 @@ class TestExceptionController {
     @GetMapping("/test/unexpected")
     fun unexpected(): String {
         throw RuntimeException("数据库连接失败：jdbc://internal-host:5432/secret-db")
+    }
+
+    /** Echo endpoint used only to trigger HttpMessageNotReadableException via bad JSON POST. */
+    @org.springframework.web.bind.annotation.PostMapping("/test/not-readable")
+    fun notReadable(@org.springframework.web.bind.annotation.RequestBody body: Map<String, Any>): Map<String, Any> {
+        return body
     }
 }

@@ -3,6 +3,7 @@ package com.commonsengine.platform.exception
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -27,6 +28,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * - IllegalArgumentException → 400 Bad Request
  * - MethodArgumentNotValidException → 400 Bad Request（校验失败详情）
  * - MethodArgumentTypeMismatchException → 400 Bad Request
+ * - HttpMessageNotReadableException → 400 Bad Request（通用文案，不泄漏 Jackson 细节）
  * - 其他未捕获异常 → 500 Internal Server Error（不泄漏堆栈）
  */
 @RestControllerAdvice
@@ -44,6 +46,8 @@ class GlobalExceptionHandler {
     )
 
     companion object {
+        private const val GENERIC_BODY_UNREADABLE = "请求体格式错误或缺失必填字段"
+
         private fun badRequest(message: String, code: String? = null) =
             ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse("BAD_REQUEST", code, message))
@@ -105,6 +109,18 @@ class GlobalExceptionHandler {
     fun handleTypeMismatch(ex: MethodArgumentTypeMismatchException): ResponseEntity<ErrorResponse> {
         logger.debug("Type mismatch: {}", ex.message)
         return badRequest("参数类型转换失败：${ex.name} 无法转换为 ${ex.requiredType?.simpleName ?: "目标类型"}")
+    }
+
+    /**
+     * JSON / 请求体不可读 → 400（#71）
+     *
+     * Jackson 的 mostSpecificCause.message 常含类名、字段路径等内部细节，
+     * 不得回传客户端；完整原因仅记 debug 日志。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleNotReadable(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> {
+        logger.debug("Unreadable request body: {}", ex.mostSpecificCause?.message ?: ex.message)
+        return badRequest(GENERIC_BODY_UNREADABLE)
     }
 
     /**
