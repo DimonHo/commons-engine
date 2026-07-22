@@ -1,0 +1,4 @@
+# 工具与测试
+-r requirements.txt
+pytest>=8.0
+httpx>=0.28.0
