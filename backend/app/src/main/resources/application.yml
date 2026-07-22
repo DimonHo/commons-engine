@@ -25,3 +25,18 @@ management:
     web:
       exposure:
         include: health,info,metrics
+
+# ── springdoc-openapi（#64）──────────────────────────
+springdoc:
+  # 默认扫描所有 @RestController；显式声明包路径确保覆盖 8 个业务模块 + 平台
+  packages-to-scan: com.commonsengine
+  # Swagger UI 配置
+  swagger-ui:
+    path: /swagger-ui.html
+    # 按模块标签排序，提升可读性
+    tags-sorter: alpha
+    operations-sorter: alpha
+    doc-expansion: none  # 默认折叠，减少首屏噪音
+  api-docs:
+    path: /v3/api-docs
+    # 默认开启；生产环境可通过 profile 关闭
