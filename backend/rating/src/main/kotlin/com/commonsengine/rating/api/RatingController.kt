@@ -5,6 +5,11 @@ import com.commonsengine.rating.domain.RatingDirection
 import com.commonsengine.rating.domain.RatingId
 import com.commonsengine.rating.domain.RatingTag
 import com.commonsengine.rating.service.RatingService
+import com.commonsengine.platform.support.Enums
+import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -26,15 +31,15 @@ open class RatingController(
 
     /** 提交评价 */
     @PostMapping("/submit")
-    fun submit(@RequestBody body: SubmitRatingRequest): RatingResponse {
+    fun submit(@Valid @RequestBody body: SubmitRatingRequest): RatingResponse {
         val rating = Rating(
             id = RatingId.random(),
             transactionId = body.transactionId,
             raterId = body.raterId,
             rateeId = body.rateeId,
-            direction = RatingDirection.valueOf(body.direction),
+            direction = Enums.parse<RatingDirection>(body.direction),
             score = body.score,
-            tags = body.tags.mapNotNull { runCatching { RatingTag.valueOf(it) }.getOrNull() }.toSet(),
+            tags = Enums.parseAll<RatingTag>(body.tags),
             comment = body.comment,
         )
         val saved = service.submit(rating)
@@ -78,11 +83,11 @@ open class RatingController(
 // ── DTO ──────────────────────────────────────────────────────────
 
 data class SubmitRatingRequest(
-    val transactionId: String,
-    val raterId: String,
-    val rateeId: String,
-    val direction: String,  // WORKER_TO_CONSUMER or CONSUMER_TO_WORKER
-    val score: Int,
+    @field:NotBlank val transactionId: String,
+    @field:NotBlank val raterId: String,
+    @field:NotBlank val rateeId: String,
+    @field:NotBlank val direction: String,  // WORKER_TO_CONSUMER or CONSUMER_TO_WORKER
+    @field:Min(1) @field:Max(5) val score: Int,
     val tags: List<String> = emptyList(),
     val comment: String? = null,
 )

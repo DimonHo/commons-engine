@@ -5,6 +5,9 @@ import com.commonsengine.dispute.domain.DisputeStatus
 import com.commonsengine.dispute.domain.DisputeType
 import com.commonsengine.dispute.domain.VerdictType
 import com.commonsengine.dispute.service.DisputeService
+import com.commonsengine.platform.support.Enums
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -28,12 +31,12 @@ open class DisputeController(
 
     /** 提交纠纷工单 */
     @PostMapping("/file")
-    fun file(@RequestBody body: FileDisputeRequest): DisputeResponse {
+    fun file(@Valid @RequestBody body: FileDisputeRequest): DisputeResponse {
         val dispute = service.file(
             transactionId = body.transactionId,
             filedBy = body.filedBy,
             filedAgainst = body.filedAgainst,
-            type = DisputeType.valueOf(body.type),
+            type = Enums.parse<DisputeType>(body.type),
             description = body.description,
             evidenceUrls = body.evidenceUrls,
         )
@@ -59,11 +62,11 @@ open class DisputeController(
     @PostMapping("/{disputeId}/arbitrate")
     fun arbitrate(
         @PathVariable disputeId: String,
-        @RequestBody body: ArbitrateRequest,
+        @Valid @RequestBody body: ArbitrateRequest,
     ): ArbitrationResponse {
         val verdict = service.arbitrate(
             disputeId = DisputeId(disputeId),
-            verdict = VerdictType.valueOf(body.verdict),
+            verdict = Enums.parse<VerdictType>(body.verdict),
             reasoning = body.reasoning,
             compensationAmount = body.compensationAmount?.let { BigDecimal(it) },
         )
@@ -85,7 +88,7 @@ open class DisputeController(
     @GetMapping
     fun findAll(@RequestParam(required = false) status: String?): List<DisputeResponse> {
         val disputes = if (status != null) {
-            service.findByStatus(DisputeStatus.valueOf(status))
+            service.findByStatus(Enums.parse<DisputeStatus>(status))
         } else {
             service.findAll()
         }
@@ -96,11 +99,11 @@ open class DisputeController(
 // ── DTO ──────────────────────────────────────────────────────────
 
 data class FileDisputeRequest(
-    val transactionId: String,
-    val filedBy: String,
-    val filedAgainst: String,
-    val type: String,
-    val description: String,
+    @field:NotBlank val transactionId: String,
+    @field:NotBlank val filedBy: String,
+    @field:NotBlank val filedAgainst: String,
+    @field:NotBlank val type: String,
+    @field:NotBlank val description: String,
     val evidenceUrls: List<String> = emptyList(),
 )
 
@@ -128,8 +131,8 @@ data class AiScreeningResponse(
 )
 
 data class ArbitrateRequest(
-    val verdict: String,  // FAVOR_FILER / FAVOR_RESPONDENT / COMPROMISE / INSUFFICIENT_EVIDENCE
-    val reasoning: String,
+    @field:NotBlank val verdict: String,  // FAVOR_FILER / FAVOR_RESPONDENT / COMPROMISE / INSUFFICIENT_EVIDENCE
+    @field:NotBlank val reasoning: String,
     val compensationAmount: String? = null,
 )
 

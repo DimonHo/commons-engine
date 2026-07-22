@@ -3,6 +3,7 @@ package com.commonsengine.platform.exception
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -96,6 +97,23 @@ class GlobalExceptionHandler {
         }
         logger.debug("Validation failed: {}", errors)
         return badRequest(errors.ifBlank { "请求参数校验失败" })
+    }
+
+    /**
+     * 请求体不可读（JSON 格式错误 / 缺失必填字段）→ 400（#71 加固）
+     *
+     * 当请求 DTO 标注了 @NotNull 等约束但请求体完全缺失，
+     * 或 JSON 结构错误（如缺少必填字段导致反序列化失败），
+     * Spring 会抛此异常而非 MethodArgumentNotValidException。
+     *
+     * 注意：响应体只返回通用文案，不透传 Jackson 异常细节，
+     * 避免 ex.mostSpecificCause?.message 泄漏内部类名 / 字段路径 / 序列化栈
+     * （#71 防御性加固，原始详情保留在 logger.debug）。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleNotReadable(ex: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> {
+        logger.debug("Malformed request body (mostSpecificCause={})", ex.mostSpecificCause?.message)
+        return badRequest("请求体格式错误或缺失必填字段")
     }
 
     /**

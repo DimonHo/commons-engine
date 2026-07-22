@@ -6,6 +6,10 @@ import com.commonsengine.dispatch.domain.WorkerPreferences
 import com.commonsengine.dispatch.service.DispatchService
 import com.commonsengine.platform.domain.ServiceType
 import com.commonsengine.platform.geo.GeoPoint
+import com.commonsengine.platform.support.Enums
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -29,11 +33,11 @@ open class DispatchController(
 
     /** 分配调度任务 */
     @PostMapping("/tasks")
-    fun assignTask(@RequestBody body: DispatchTaskRequest): DispatchTaskResponse {
+    fun assignTask(@Valid @RequestBody body: DispatchTaskRequest): DispatchTaskResponse {
         val task = DispatchTask(
             id = body.id ?: UUID.randomUUID().toString(),
             workerId = body.workerId,
-            serviceType = ServiceType.valueOf(body.serviceType),
+            serviceType = Enums.parse<ServiceType>(body.serviceType),
             pickups = body.pickups.map { GeoPoint(it.lat, it.lng) },
             dropoffs = body.dropoffs.map { GeoPoint(it.lat, it.lng) },
             estimatedDistanceMeters = body.estimatedDistanceMeters ?: 0.0,
@@ -58,12 +62,11 @@ open class DispatchController(
     @PostMapping("/workers/{workerId}/preferences")
     fun savePreferences(
         @PathVariable workerId: String,
-        @RequestBody body: WorkerPreferencesRequest,
+        @Valid @RequestBody body: WorkerPreferencesRequest,
     ): Map<String, String> {
         val prefs = WorkerPreferences(
             workerId = workerId,
-            preferredServiceTypes = body.preferredServiceTypes
-                .mapNotNull { runCatching { ServiceType.valueOf(it) }.getOrNull() }.toSet(),
+            preferredServiceTypes = Enums.parseAll<ServiceType>(body.preferredServiceTypes),
             preferredRegions = body.preferredRegions.toSet(),
             excludedRegions = body.excludedRegions.toSet(),
             preferredTimeSlots = body.preferredTimeSlots.map { it.toTimeSlot() }.toSet(),
@@ -93,11 +96,11 @@ open class DispatchController(
 
     /** 优化路径 */
     @PostMapping("/optimize-route")
-    fun optimizeRoute(@RequestBody body: OptimizeRouteRequest): RouteSuggestionResponse {
+    fun optimizeRoute(@Valid @RequestBody body: OptimizeRouteRequest): RouteSuggestionResponse {
         val task = DispatchTask(
             id = "optimize-${UUID.randomUUID()}",
             workerId = body.workerId,
-            serviceType = ServiceType.valueOf(body.serviceType),
+            serviceType = Enums.parse<ServiceType>(body.serviceType),
             pickups = body.pickups.map { GeoPoint(it.lat, it.lng) },
             dropoffs = body.dropoffs.map { GeoPoint(it.lat, it.lng) },
         )
@@ -123,10 +126,10 @@ data class TimeSlotDto(val dayOfWeek: Int, val startHour: Int, val endHour: Int)
 
 data class DispatchTaskRequest(
     val id: String? = null,
-    val workerId: String,
-    val serviceType: String,
-    val pickups: List<GeoPointDto>,
-    val dropoffs: List<GeoPointDto>,
+    @field:NotBlank val workerId: String,
+    @field:NotBlank val serviceType: String,
+    @field:NotEmpty val pickups: List<GeoPointDto>,
+    @field:NotEmpty val dropoffs: List<GeoPointDto>,
     val estimatedDistanceMeters: Double? = null,
     val estimatedDurationMinutes: Int? = null,
 )
@@ -164,12 +167,12 @@ data class WorkerPreferencesResponse(
 )
 
 data class OptimizeRouteRequest(
-    val workerId: String,
-    val serviceType: String,
+    @field:NotBlank val workerId: String,
+    @field:NotBlank val serviceType: String,
     val currentLat: Double,
     val currentLng: Double,
-    val pickups: List<GeoPointDto>,
-    val dropoffs: List<GeoPointDto>,
+    @field:NotEmpty val pickups: List<GeoPointDto>,
+    @field:NotEmpty val dropoffs: List<GeoPointDto>,
 )
 
 data class RouteSuggestionResponse(

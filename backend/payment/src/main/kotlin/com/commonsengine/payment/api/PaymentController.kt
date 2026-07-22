@@ -4,6 +4,10 @@ import com.commonsengine.payment.domain.Transaction
 import com.commonsengine.payment.domain.TransactionId
 import com.commonsengine.payment.service.PaymentService
 import com.commonsengine.platform.exception.NotFoundException
+import com.commonsengine.platform.support.Enums
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -29,7 +33,7 @@ open class PaymentController(
 
     /** 发起收款——创建交易并执行收款，返回已收款交易 */
     @PostMapping("/charge")
-    fun charge(@RequestBody body: ChargeRequest): TransactionResponse {
+    fun charge(@Valid @RequestBody body: ChargeRequest): TransactionResponse {
         val tx = Transaction(
             id = TransactionId.random(),
             consumerId = body.consumerId,
@@ -82,7 +86,7 @@ open class PaymentController(
     @PostMapping("/{transactionId}/refund")
     fun refund(
         @PathVariable transactionId: String,
-        @RequestBody body: RefundRequest,
+        @Valid @RequestBody body: RefundRequest,
     ): RefundResponse {
         val tx = service.findById(TransactionId(transactionId))
             ?: throw NotFoundException("Transaction", transactionId)
@@ -133,14 +137,14 @@ open class PaymentController(
 // ── DTO ──────────────────────────────────────────────────────────
 
 data class ChargeRequest(
-    val consumerId: String,
-    val workerId: String,
-    val amount: BigDecimal,
-    val serviceType: String,
+    @field:NotBlank val consumerId: String,
+    @field:NotBlank val workerId: String,
+    @field:Positive val amount: BigDecimal,
+    @field:NotBlank val serviceType: String,
 )
 
 data class RefundRequest(
-    val reason: String,
+    @field:NotBlank val reason: String,
 )
 
 data class TransactionResponse(
