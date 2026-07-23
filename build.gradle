@@ -1,0 +1,38 @@
+// 根构建——Commons Engine Java 迁移版
+// 从 Kotlin 2.3.0 + Spring Boot 4.1.0 迁移到纯 Java + Spring Boot 4.1.0
+// JDK 21 LTS（支持 JPMS 模块化）
+
+group = "com.commonsengine"
+version = "0.1.0-SNAPSHOT"
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    if (path.startsWith(":backend:")) {
+        apply plugin: "java"
+
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(21)
+            }
+        }
+
+        dependencies {
+            implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.0"))
+            testImplementation("org.springframework.boot:spring-boot-starter-test")
+        }
+
+        tasks.withType(Test).configureEach {
+            useJUnitPlatform()
+        }
+
+        tasks.withType(JavaCompile).configureEach {
+            options.encoding = "UTF-8"
+            options.compilerArgs.addAll(["-parameters", "--enable-preview"])
+        }
+    }
+}
