@@ -317,10 +317,10 @@ commons-engine/
 ├── deployments/
 │   ├── docker-compose.yml    ✅
 │   └── helm/                 ← K8s（阶段 3）      📋
-├── clients/                  ← 客户端层           📋 全部未启动
-│   ├── worker-app/           ← 劳动者 App（React Native）
-│   ├── consumer-app/         ← 消费者 App（React Native）
-│   └── admin-console/        ← 管理后台（React）
+├── clients/                  ← 客户端层
+│   ├── worker-app/           ← 劳动者 App（React Native） 📋 未启动
+│   ├── consumer-app/         ← 消费者 App（React Native） 📋 未启动
+│   └── admin-console/        ← 管理后台（React）  🟡 脚手架就绪
 ├── scripts/                  ← 辅助脚本（gh.sh / smoke-test.sh 等）
 └── CONTRIBUTING.md
 ```
