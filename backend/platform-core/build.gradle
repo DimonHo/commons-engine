@@ -1,9 +1,0 @@
-group = "com.commonsengine"
-version = "0.1.0-SNAPSHOT"
-
-dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.0"))
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("io.github.resilience4j:resilience4j-circuitbreaker:2.3.0")
-    implementation("io.github.resilience4j:resilience4j-retry:2.3.0")
-}
