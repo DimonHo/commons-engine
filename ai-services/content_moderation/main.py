@@ -2,7 +2,8 @@
 
 阶段 2 MVP：基于规则词典的内容审核，覆盖评价文本、商家信息的常见违规类别
 （涉政、辱骂、广告引流、敏感个人信息）。
-后续阶段接入 NLP 分类模型（架构文档 3.8），规则引擎作为兜底 + 可解释依据。
+阶段 2.1（#75）：接入 NLP 模型层抽象，审核分类由 registry 分发，
+端点签名不变，规则引擎降级为 fallback + 可解释依据。
 """
 from __future__ import annotations
 
@@ -14,6 +15,8 @@ from pydantic import BaseModel, Field
 
 from common.logging import configure_logging
 from common.models import ApiResponse, HealthResponse
+from common.nlp import get_classifier
+from common.nlp.base import ModerationClassification
 
 logger = configure_logging(service_name="content-moderation")
 app = FastAPI(
@@ -68,50 +71,43 @@ class ModerationResult(BaseModel):
     reason: str = Field(description="可解释的判定依据——满足架构文档「算法透明」原则")
 
 
-# ── 规则词典（阶段 2 MVP） ─────────────────────────────
-# 说明：MVP 用关键词命中。词汇表刻意保守——宁可漏判转人工，不可误伤普通用户。
-# 接入 NLP 模型后，词典作为 fallback + 可解释性依据保留。
-_RULES: list[tuple[list[str], ModerationCategory, ModerationDecision]] = [
-    (["辱骂占位"], ModerationCategory.ABUSE, ModerationDecision.BLOCKED),  # 占位，实际词典由治理配置
-    (["加微信", "加v信", "微信号", "扫码进群", "私聊"], ModerationCategory.SPAM, ModerationDecision.FLAGGED),
-]
+# ── 违规类别 → 处置决策映射 ─────────────────────────────
+# NLP 模型层（#75）返回分类标签，此处决定处置力度。
+# 规则引擎的 keyword 词典已迁移到 common/nlp/rule_based.py，
+# 此模块不再维护重复的关键词列表。
+_CATEGORY_DECISION: dict[str, ModerationDecision] = {
+    ModerationCategory.POLITICS.value: ModerationDecision.BLOCKED,
+    ModerationCategory.ABUSE.value: ModerationDecision.BLOCKED,
+    ModerationCategory.SPAM.value: ModerationDecision.FLAGGED,
+    ModerationCategory.PII.value: ModerationDecision.FLAGGED,
+    ModerationCategory.CLEAN.value: ModerationDecision.APPROVED,
+}
 
-# PII 检测：中国大陆手机号（11 位、1 开头）与身份证号（18 位）模式
-import re
-
-_PHONE_RE = re.compile(r"1[3-9]\d{9}")
-_ID_CARD_RE = re.compile(r"\d{17}[\dXx]")
+# ── NLP 内容审核分类器（#75：通过 registry 选择后端） ──
+# 默认 rule backend = 与原规则词典行为完全一致。
+# 设置 COMMONS_CONTENT_CLASSIFIER=huggingface 切换 NLP 模型。
+_content_classifier = get_classifier("content")
 
 
 def _moderate(content: str, source: ContentSource) -> ModerationResult:
-    """核心审核逻辑 — 规则引擎实现。"""
-    text = content.lower()
+    """核心审核逻辑 — 通过 NLP 模型层 registry 分发（#75）。"""
+    result = _content_classifier.classify(content)
+    category = result.category or ModerationCategory.CLEAN.value
+    decision = _CATEGORY_DECISION.get(category, ModerationDecision.FLAGGED)
 
-    # 1. PII 检测（所有来源都拦截明文手机号/身份证）
-    if _PHONE_RE.search(content) or _ID_CARD_RE.search(content):
-        return ModerationResult(
-            decision=ModerationDecision.FLAGGED,
-            category=ModerationCategory.PII,
-            confidence=0.95,
-            reason="检测到疑似手机号或身份证号——为保护隐私，标记待复审",
-        )
+    # 将分类标签映射回枚举值——ModerationCategory 是 str+Enum，支持按值构造
+    try:
+        moderation_category = ModerationCategory(category)
+    except ValueError:
+        # 未知分类 → 标记待复审（保守策略）
+        moderation_category = ModerationCategory.CLEAN
+        decision = ModerationDecision.FLAGGED
 
-    # 2. 关键词规则
-    for keywords, category, decision in _RULES:
-        if any(kw in text for kw in keywords):
-            return ModerationResult(
-                decision=decision,
-                category=category,
-                confidence=0.8,
-                reason=f"命中规则词典：{category.value}",
-            )
-
-    # 3. 默认通过
     return ModerationResult(
-        decision=ModerationDecision.APPROVED,
-        category=ModerationCategory.CLEAN,
-        confidence=0.7,
-        reason="未命中任何违规规则",
+        decision=decision,
+        category=moderation_category,
+        confidence=result.confidence,
+        reason=result.reason,
     )
 
 
@@ -132,14 +128,18 @@ async def moderate(req: ModerationRequest) -> ApiResponse[ModerationResult]:
     """审核单条文本内容。
 
     返回决策（approved/flagged/blocked）+ 可解释依据。
+    审核分类通过 NLP 模型层 registry 分发（#75）：
+    - 默认 rule backend（规则词典，与 MVP 行为一致）
+    - 设置 COMMONS_CONTENT_CLASSIFIER=huggingface 切换 NLP 模型
     flagged/blocked 内容由核心业务层（dispute/审核队列）做后续处理。
     """
     result = _moderate(req.content, req.source)
     logger.info(
-        "moderated source=%s decision=%s category=%s confidence=%.2f",
+        "moderated source=%s decision=%s category=%s confidence=%.2f backend=%s",
         req.source.value,
         result.decision.value,
         result.category.value,
         result.confidence,
+        _content_classifier.__class__.__name__,
     )
     return ApiResponse(data=result)
