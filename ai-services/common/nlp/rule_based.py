@@ -29,7 +29,7 @@ _INTENT_RULES: list[tuple[list[str], str]] = [
 
 # ── 内容审核规则（从 content_moderation/main.py 提取，保持一致） ──
 _MODERATION_RULES: list[tuple[list[str], ModerationClassification]] = [
-    (["辱骂占位"], ModerationCategory_ABUSE := ModerationClassification.ABUSE),
+    (["辱骂占位"], ModerationClassification.ABUSE),
     (["加微信", "加v信", "微信号", "扫码进群", "私聊"], ModerationClassification.SPAM),
 ]
 

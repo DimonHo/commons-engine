@@ -95,18 +95,10 @@ def _moderate(content: str, source: ContentSource) -> ModerationResult:
     category = result.category or ModerationCategory.CLEAN.value
     decision = _CATEGORY_DECISION.get(category, ModerationDecision.FLAGGED)
 
-    # CLEAN 类别需要映射为正确的枚举值
-    if category == ModerationCategory.CLEAN.value:
-        moderation_category = ModerationCategory.CLEAN
-    elif category == ModerationCategory.POLITICS.value:
-        moderation_category = ModerationCategory.POLITICS
-    elif category == ModerationCategory.ABUSE.value:
-        moderation_category = ModerationCategory.ABUSE
-    elif category == ModerationCategory.SPAM.value:
-        moderation_category = ModerationCategory.SPAM
-    elif category == ModerationCategory.PII.value:
-        moderation_category = ModerationCategory.PII
-    else:
+    # 将分类标签映射回枚举值——ModerationCategory 是 str+Enum，支持按值构造
+    try:
+        moderation_category = ModerationCategory(category)
+    except ValueError:
         # 未知分类 → 标记待复审（保守策略）
         moderation_category = ModerationCategory.CLEAN
         decision = ModerationDecision.FLAGGED
